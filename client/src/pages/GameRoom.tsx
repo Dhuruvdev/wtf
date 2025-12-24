@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { AlertCircle, Users, Copy, Plus } from "lucide-react";
 import iconUrl from "@assets/icon.png";
 import { SpaceBackground } from "@/components/SpaceBackground";
+import { SoundToggle } from "@/components/SoundToggle";
 
 export default function GameRoom() {
   const [, params] = useRoute("/room/:code");
@@ -87,6 +88,26 @@ export default function GameRoom() {
     navigator.clipboard.writeText(code || "");
   };
 
+  const handleStartGame = async () => {
+    if (!roomId) {
+      setError("Room not loaded");
+      return;
+    }
+    try {
+      const res = await fetch(`/api/rooms/${roomId}/start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) {
+        throw new Error("Failed to start game");
+      }
+      setGamePhase("playing");
+    } catch (err) {
+      console.error("Start game error", err);
+      setError("Failed to start game");
+    }
+  };
+
   return (
     <div className="min-h-screen p-4">
       <SpaceBackground />
@@ -105,9 +126,12 @@ export default function GameRoom() {
               </div>
             </div>
           </div>
-          <div className="text-right">
-            <p className="text-2xl font-bold text-purple-400">{formatTime(timeLeft)}</p>
-            <p className="text-slate-400 text-sm">Round time</p>
+          <div className="flex items-center gap-4">
+            <SoundToggle />
+            <div className="text-right">
+              <p className="text-2xl font-bold text-purple-400">{formatTime(timeLeft)}</p>
+              <p className="text-slate-400 text-sm">Round time</p>
+            </div>
           </div>
         </div>
 
@@ -152,7 +176,11 @@ export default function GameRoom() {
                     </Button>
                   )}
                   {isHost && (
-                    <Button className="w-full bg-purple-600 hover:bg-purple-700 mt-6" data-testid="button-start-game">
+                    <Button 
+                      onClick={handleStartGame}
+                      className="w-full bg-purple-600 hover:bg-purple-700 mt-6" 
+                      data-testid="button-start-game"
+                    >
                       Start Game
                     </Button>
                   )}

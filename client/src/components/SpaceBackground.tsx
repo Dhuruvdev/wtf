@@ -1,23 +1,24 @@
 export function SpaceBackground() {
-  const stars = Array.from({ length: 100 }, (_, i) => ({
+  const stars = Array.from({ length: 150 }, (_, i) => ({
     id: i,
     x: Math.random() * 100,
     y: Math.random() * 100,
-    size: Math.random() * 2,
-    duration: 2 + Math.random() * 3,
+    size: Math.random() * 2.5 + 0.5,
+    duration: 2 + Math.random() * 4,
     delay: Math.random() * 2,
+    opacity: Math.random() * 0.7 + 0.3,
   }));
 
   return (
     <>
       <style>{`
         @keyframes twinkle {
-          0%, 100% { opacity: 0.3; }
+          0%, 100% { opacity: var(--min-opacity); }
           50% { opacity: 1; }
         }
-        @keyframes float {
-          0%, 100% { transform: translateY(0px) translateX(0px); }
-          50% { transform: translateY(-20px) translateX(10px); }
+        @keyframes nebulaPulse {
+          0%, 100% { transform: scale(1); opacity: 0.15; }
+          50% { transform: scale(1.1); opacity: 0.25; }
         }
         .star {
           position: absolute;
@@ -25,8 +26,19 @@ export function SpaceBackground() {
           border-radius: 50%;
           animation: twinkle var(--duration) ease-in-out infinite;
         }
+        .nebula {
+          position: absolute;
+          border-radius: 50%;
+          animation: nebulaPulse 8s ease-in-out infinite;
+          filter: blur(80px);
+        }
       `}</style>
-      <div className="fixed inset-0 bg-gradient-to-br from-slate-950 via-purple-900/20 to-slate-950 overflow-hidden pointer-events-none z-0">
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0" style={{ background: 'linear-gradient(135deg, #0f0a1a 0%, #1a0a2e 25%, #16213e 50%, #0f3460 75%, #0a1428 100%)' }}>
+        {/* Deep space nebula clouds */}
+        <div className="nebula absolute top-20 left-20 w-80 h-80 bg-purple-500" style={{ opacity: 0.1 }} />
+        <div className="nebula absolute top-1/3 right-1/4 w-96 h-96 bg-blue-500" style={{ opacity: 0.08, animationDelay: '2s' }} />
+        <div className="nebula absolute bottom-40 left-1/3 w-72 h-72 bg-indigo-500" style={{ opacity: 0.12, animationDelay: '4s' }} />
+        
         {/* Animated stars */}
         {stars.map((star) => (
           <div
@@ -39,14 +51,14 @@ export function SpaceBackground() {
               height: `${star.size}px`,
               '--duration': `${star.duration}s`,
               '--delay': `${star.delay}s`,
+              '--min-opacity': star.opacity,
               animation: `twinkle ${star.duration}s ease-in-out infinite ${star.delay}s`,
             } as React.CSSProperties}
           />
         ))}
         
-        {/* Animated nebula glow */}
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-1/3 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+        {/* Glow effects for atmosphere */}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-purple-900/5 to-indigo-900/10" />
       </div>
     </>
   );
