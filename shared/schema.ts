@@ -68,6 +68,29 @@ export const votes = pgTable("votes", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const roastBattles = pgTable("roast_battles", {
+  id: serial("id").primaryKey(),
+  roomId: integer("room_id").notNull(),
+  roundNumber: integer("round_number").default(1),
+  performer1Id: integer("performer_1_id").notNull(),
+  performer2Id: integer("performer_2_id").notNull(),
+  roast1Text: text("roast_1_text"),
+  roast2Text: text("roast_2_text"),
+  votesForPerformer1: integer("votes_for_performer_1").default(0),
+  votesForPerformer2: integer("votes_for_performer_2").default(0),
+  winnerId: integer("winner_id"),
+  status: text("status").default("waiting"), // waiting, performing, voting, results
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const roastVotes = pgTable("roast_votes", {
+  id: serial("id").primaryKey(),
+  battleId: integer("battle_id").notNull(),
+  voterId: integer("voter_id").notNull(),
+  votedForId: integer("voted_for_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // === RELATIONS ===
 export const roomsRelations = relations(rooms, ({ many, one }) => ({
   players: many(players),
@@ -164,6 +187,8 @@ export type Player = typeof players.$inferSelect;
 export type GameItem = typeof gameItems.$inferSelect;
 export type Clue = typeof clues.$inferSelect;
 export type Vote = typeof votes.$inferSelect;
+export type RoastBattle = typeof roastBattles.$inferSelect;
+export type RoastVote = typeof roastVotes.$inferSelect;
 
 export const WS_EVENTS = {
   PLAYER_JOINED: 'player_joined',

@@ -6,12 +6,16 @@ import {
   gameItems,
   clues,
   votes,
+  roastBattles,
+  roastVotes,
   type Room,
   type Player,
   type GameItem,
   type Clue,
   type Vote,
   type User,
+  type RoastBattle,
+  type RoastVote,
 } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import { nanoid } from "nanoid";
@@ -38,6 +42,12 @@ export interface IStorage {
   getUserByDiscordId(discordId: string): Promise<User | undefined>;
   createUser(discordId: string, discordUsername: string, discordAvatar: string | undefined, discordEmail: string | undefined, discordToken: string): Promise<User>;
   updateUserToken(userId: number, discordToken: string): Promise<void>;
+  createRoastBattle(roomId: number, performer1Id: number, performer2Id: number): Promise<RoastBattle>;
+  getRoastBattle(battleId: number): Promise<RoastBattle | undefined>;
+  updateRoastBattleStatus(battleId: number, status: string): Promise<void>;
+  addRoastVote(battleId: number, voterId: number, votedForId: number): Promise<RoastVote>;
+  getRoastVotes(battleId: number): Promise<RoastVote[]>;
+  updateRoastBattleWinner(battleId: number, winnerId: number, votes1: number, votes2: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -180,6 +190,47 @@ export class DatabaseStorage implements IStorage {
 
   async updateUserToken(userId: number, discordToken: string): Promise<void> {
     await db.update(users).set({ discordToken }).where(eq(users.id, userId));
+  }
+
+  async createRoastBattle(roomId: number, performer1Id: number, performer2Id: number): Promise<RoastBattle> {
+    const [battle] = await db.insert(roastBattles).values({
+      roomId,
+      performer1Id,
+      performer2Id,
+      status: "waiting",
+    }).returning();
+    return battle;
+  }
+
+  async getRoastBattle(battleId: number): Promise<RoastBattle | undefined> {
+    const [battle] = await db.select().from(roastBattles).where(eq(roastBattles.id, battleId));
+    return battle;
+  }
+
+  async updateRoastBattleStatus(battleId: number, status: string): Promise<void> {
+    await db.update(roastBattles).set({ status }).where(eq(roastBattles.id, battleId));
+  }
+
+  async addRoastVote(battleId: number, voterId: number, votedForId: number): Promise<RoastVote> {
+    const [vote] = await db.insert(roastVotes).values({
+      battleId,
+      voterId,
+      votedForId,
+    }).returning();
+    return vote;
+  }
+
+  async getRoastVotes(battleId: number): Promise<RoastVote[]> {
+    return await db.select().from(roastVotes).where(eq(roastVotes.battleId, battleId));
+  }
+
+  async updateRoastBattleWinner(battleId: number, winnerId: number, votes1: number, votes2: number): Promise<void> {
+    await db.update(roastBattles).set({
+      winnerId,
+      votesForPerformer1: votes1,
+      votesForPerformer2: votes2,
+      status: "results",
+    }).where(eq(roastBattles.id, battleId));
   }
 }
 

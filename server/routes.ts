@@ -315,5 +315,87 @@ export async function registerRoutes(
     }
   });
 
+  // Roast Battle endpoints
+  app.post('/api/rooms/:roomId/start-roast', async (req, res) => {
+    try {
+      const roomId = Number(req.params.roomId);
+      const players = await storage.getPlayers(roomId);
+      const alivePlayers = players.filter(p => p.isAlive);
+      
+      if (alivePlayers.length < 2) {
+        return res.status(400).json({ message: "Need at least 2 alive players" });
+      }
+
+      const performer1 = alivePlayers[Math.floor(Math.random() * alivePlayers.length)];
+      let performer2 = alivePlayers[Math.floor(Math.random() * alivePlayers.length)];
+      while (performer2.id === performer1.id && alivePlayers.length > 1) {
+        performer2 = alivePlayers[Math.floor(Math.random() * alivePlayers.length)];
+      }
+
+      const battle = await storage.createRoastBattle(roomId, performer1.id, performer2.id);
+      broadcast(roomId, 'ROAST_BATTLE_START', {
+        battleId: battle.id,
+        performer1: { id: performer1.id, username: performer1.username },
+        performer2: { id: performer2.id, username: performer2.username },
+      });
+
+      res.json(battle);
+    } catch (err) {
+      console.error('Failed to start roast battle', err);
+      res.status(500).json({ message: "Failed to start roast battle" });
+    }
+  });
+
+  app.post('/api/roast-battles/:battleId/vote', async (req, res) => {
+    try {
+      const battleId = Number(req.params.battleId);
+      const { voterId, votedForId } = req.body;
+
+      const vote = await storage.addRoastVote(battleId, voterId, votedForId);
+      const battle = await storage.getRoastBattle(battleId);
+      if (battle) {
+        broadcast(battle.roomId, 'ROAST_VOTE_SUBMITTED', { battleId, voterId });
+      }
+
+      res.json(vote);
+    } catch (err) {
+      console.error('Failed to submit roast vote', err);
+      res.status(500).json({ message: "Failed to submit vote" });
+    }
+  });
+
+  app.post('/api/roast-battles/:battleId/end', async (req, res) => {
+    try {
+      const battleId = Number(req.params.battleId);
+      const battle = await storage.getRoastBattle(battleId);
+      if (!battle) return res.status(404).json({ message: "Battle not found" });
+
+      const votes = await storage.getRoastVotes(battleId);
+      const votesForPerformer1 = votes.filter(v => v.votedForId === battle.performer1Id).length;
+      const votesForPerformer2 = votes.filter(v => v.votedForId === battle.performer2Id).length;
+
+      const winnerId = votesForPerformer1 > votesForPerformer2 
+        ? battle.performer1Id 
+        : battle.performer2Id;
+
+      await storage.updateRoastBattleWinner(battleId, winnerId, votesForPerformer1, votesForPerformer2);
+      
+      const loserId = winnerId === battle.performer1Id ? battle.performer2Id : battle.performer1Id;
+      await storage.updatePlayerAlive(loserId, false);
+
+      broadcast(battle.roomId, 'ROAST_BATTLE_END', {
+        battleId,
+        winner: winnerId,
+        votesForPerformer1,
+        votesForPerformer2,
+      });
+
+      res.json({ success: true });
+    } catch (err) {
+      console.error('Failed to end roast battle', err);
+      res.status(500).json({ message: "Failed to end battle" });
+    }
+  });
+
   return httpServer;
 }
