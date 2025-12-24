@@ -1,18 +1,51 @@
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { LogOut, Volume2 } from "lucide-react";
+import { LogOut, Volume2, Bot } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
+import { api } from "@shared/routes";
 
 interface GameHeaderProps {
   roomCode: string;
+  roomId?: number;
   round?: number;
+  isLobby?: boolean;
 }
 
-export function GameHeader({ roomCode, round }: GameHeaderProps) {
+export function GameHeader({ roomCode, roomId, round, isLobby }: GameHeaderProps) {
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const handleLeave = () => {
     if (confirm("Are you sure you want to leave the game?")) {
       setLocation("/");
+    }
+  };
+
+  const handleAddAI = async () => {
+    if (!roomId) return;
+    try {
+      const res = await fetch(`/api/rooms/${roomId}/add-ai`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message);
+      }
+      toast({
+        title: 'Robot Added!',
+        description: 'A new AI player joined the game',
+      });
+      // Refresh room data
+      queryClient.invalidateQueries({ queryKey: [api.rooms.get.path, roomCode] });
+    } catch (err) {
+      toast({
+        title: 'Error',
+        description: err instanceof Error ? err.message : 'Failed to add AI player',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -41,6 +74,17 @@ export function GameHeader({ roomCode, round }: GameHeaderProps) {
         <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
           <Volume2 className="w-5 h-5" />
         </Button>
+        {isLobby && (
+          <Button 
+            variant="ghost" 
+            size="sm"
+            className="text-blue-400 hover:text-blue-300 hover:bg-blue-400/10"
+            onClick={handleAddAI}
+          >
+            <Bot className="w-4 h-4 mr-2" />
+            Add Bot
+          </Button>
+        )}
         <Button 
           variant="ghost" 
           size="sm" 

@@ -127,6 +127,31 @@ export async function registerRoutes(
     res.json({ ...room, players });
   });
 
+  // Add AI player endpoint
+  app.post('/api/rooms/:roomId/add-ai', async (req, res) => {
+    try {
+      const roomId = Number(req.params.roomId);
+      const room = await storage.getRoom(roomId);
+      
+      if (!room) {
+        return res.status(404).json({ message: "Room not found" });
+      }
+
+      const players_list = await storage.getPlayers(roomId);
+      if (players_list.length >= 8) {
+        return res.status(400).json({ message: "Room is full (max 8 players)" });
+      }
+
+      const aiPlayer = await storage.addAIPlayer(roomId);
+      broadcast(roomId, 'AI_JOINED', { player: aiPlayer });
+      
+      res.json(aiPlayer);
+    } catch (err) {
+      console.error('Failed to add AI player', err);
+      res.status(500).json({ message: "Failed to add AI player" });
+    }
+  });
+
   // Start game endpoint
   app.post('/api/rooms/:roomId/start', async (req, res) => {
     try {

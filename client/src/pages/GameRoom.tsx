@@ -230,7 +230,12 @@ export default function GameRoom() {
 
   return (
     <div className="h-screen bg-[#36393f] flex flex-col overflow-hidden text-foreground font-sans">
-      <GameHeader roomCode={room.code} round={room.round || 0} />
+      <GameHeader 
+        roomCode={room.code} 
+        roomId={room.id}
+        round={room.round || 0}
+        isLobby={room.status === 'lobby'}
+      />
       
       {/* Main Game Area */}
       <main className="flex-1 relative overflow-y-auto p-4 md:p-8">

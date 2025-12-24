@@ -19,6 +19,7 @@ export interface IStorage {
   getPlayerBySocketId(socketId: string): Promise<Player | undefined>;
   removePlayer(socketId: string): Promise<void>;
   updateRoomStatus(roomId: number, status: string): Promise<void>;
+  addAIPlayer(roomId: number): Promise<Player>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -68,6 +69,20 @@ export class DatabaseStorage implements IStorage {
 
   async updateRoomStatus(roomId: number, status: string): Promise<void> {
     await db.update(rooms).set({ status }).where(eq(rooms.id, roomId));
+  }
+
+  async addAIPlayer(roomId: number): Promise<Player> {
+    const aiNames = ['Bot Alpha', 'Bot Beta', 'Bot Gamma', 'Bot Delta', 'Bot Epsilon'];
+    const randomName = aiNames[Math.floor(Math.random() * aiNames.length)];
+    const aiSocketId = `ai-${nanoid()}`;
+    
+    const [newPlayer] = await db.insert(players).values({
+      roomId,
+      socketId: aiSocketId,
+      username: randomName,
+      avatarUrl: undefined,
+    }).returning();
+    return newPlayer;
   }
 }
 
