@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { AlertCircle } from "lucide-react";
 import logoUrl from "@assets/logo.png";
 import { SpaceBackground } from "@/components/SpaceBackground";
+import { GameGuide } from "@/components/GameGuide";
 
 export default function JoinLobby() {
   const [, navigate] = useLocation();
@@ -65,7 +66,12 @@ export default function JoinLobby() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <SpaceBackground />
-      <Card className="w-full max-w-md border-slate-700 bg-slate-800/80 backdrop-blur-sm relative z-10">
+      <div className="w-full max-w-2xl relative z-10">
+        {/* Game Guide */}
+        <GameGuide />
+        
+        {/* Login Card */}
+        <Card className="border-slate-700 bg-slate-800/80 backdrop-blur-sm">
         <div className="p-8">
           <div className="flex justify-center mb-6">
             <img src={logoUrl} alt="WHO BROKE IT?" className="h-32 w-auto drop-shadow-lg" data-testid="img-logo" />
@@ -126,7 +132,8 @@ export default function JoinLobby() {
             </div>
           </div>
         </div>
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 }

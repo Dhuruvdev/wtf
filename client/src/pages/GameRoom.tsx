@@ -2,11 +2,12 @@ import { useState, useEffect } from "react";
 import { useLocation, useRoute } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { AlertCircle, Users, Copy, Plus } from "lucide-react";
+import { AlertCircle, Users, Copy, Plus, HelpCircle } from "lucide-react";
 import iconUrl from "@assets/icon.png";
 import { SpaceBackground } from "@/components/SpaceBackground";
 import { SoundToggle } from "@/components/SoundToggle";
 import { useSoundEffect } from "@/hooks/useSoundEffect";
+import { GameGuide } from "@/components/GameGuide";
 
 export default function GameRoom() {
   const [, params] = useRoute("/room/:code");
@@ -24,6 +25,7 @@ export default function GameRoom() {
   const [timeLeft, setTimeLeft] = useState(240);
   const [isHost, setIsHost] = useState(false);
   const [isAddingBot, setIsAddingBot] = useState(false);
+  const [showGuide, setShowGuide] = useState(true);
 
   // Load room data on mount
   useEffect(() => {
@@ -151,6 +153,37 @@ export default function GameRoom() {
               {error}
             </div>
           </Card>
+        )}
+
+        {/* Game Guide Toggle */}
+        {showGuide && (
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <GameGuide />
+              <Button 
+                size="sm" 
+                variant="ghost" 
+                onClick={() => setShowGuide(false)}
+                className="text-slate-400 hover:text-slate-200"
+                data-testid="button-close-guide"
+              >
+                Hide Guide
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {!showGuide && (
+          <Button 
+            size="sm" 
+            variant="outline"
+            onClick={() => setShowGuide(true)}
+            className="mb-4 border-slate-600 hover:bg-slate-700"
+            data-testid="button-show-guide"
+          >
+            <HelpCircle className="w-4 h-4 mr-2" />
+            Show Guide
+          </Button>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
