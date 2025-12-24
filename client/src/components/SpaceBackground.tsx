@@ -33,7 +33,7 @@ export function SpaceBackground() {
           filter: blur(80px);
         }
       `}</style>
-      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0" style={{ background: 'linear-gradient(135deg, #0f0a1a 0%, #1a0a2e 25%, #16213e 50%, #0f3460 75%, #0a1428 100%)' }}>
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0" style={{ background: '#000000' }}>
         {/* Deep space nebula clouds */}
         <div className="nebula absolute top-20 left-20 w-80 h-80 bg-purple-500" style={{ opacity: 0.1 }} />
         <div className="nebula absolute top-1/3 right-1/4 w-96 h-96 bg-blue-500" style={{ opacity: 0.08, animationDelay: '2s' }} />

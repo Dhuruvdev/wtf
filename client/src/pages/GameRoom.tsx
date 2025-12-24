@@ -6,10 +6,12 @@ import { AlertCircle, Users, Copy, Plus } from "lucide-react";
 import iconUrl from "@assets/icon.png";
 import { SpaceBackground } from "@/components/SpaceBackground";
 import { SoundToggle } from "@/components/SoundToggle";
+import { useSoundEffect } from "@/hooks/useSoundEffect";
 
 export default function GameRoom() {
   const [, params] = useRoute("/room/:code");
   const [, navigate] = useLocation();
+  const { playClick, playSuccess } = useSoundEffect();
   const code = params?.code;
   const [roomId, setRoomId] = useState<number | null>(null);
   const [gamePhase, setGamePhase] = useState<"lobby" | "playing" | "voting" | "results">("lobby");
@@ -44,6 +46,7 @@ export default function GameRoom() {
   }, [code]);
 
   const handleAddBot = async () => {
+    playClick();
     if (!roomId) {
       setError("Room not loaded");
       return;
@@ -56,6 +59,7 @@ export default function GameRoom() {
       });
       const botPlayer = await res.json();
       setPlayers([...players, botPlayer]);
+      playSuccess();
     } catch (err) {
       console.error("Add bot error", err);
       setError("Failed to add bot player");
@@ -79,16 +83,20 @@ export default function GameRoom() {
 
   const handleSubmitClue = () => {
     if (clueInput.trim()) {
+      playClick();
       setClues([...clues, clueInput]);
       setClueInput("");
+      playSuccess();
     }
   };
 
   const handleCopyCode = () => {
+    playClick();
     navigator.clipboard.writeText(code || "");
   };
 
   const handleStartGame = async () => {
+    playClick();
     if (!roomId) {
       setError("Room not loaded");
       return;
@@ -102,6 +110,7 @@ export default function GameRoom() {
         throw new Error("Failed to start game");
       }
       setGamePhase("playing");
+      playSuccess();
     } catch (err) {
       console.error("Start game error", err);
       setError("Failed to start game");

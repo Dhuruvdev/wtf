@@ -2,6 +2,38 @@ import { useState, useEffect, useRef } from 'react';
 import { Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+// Helper to play button click sound
+function playButtonClickSound() {
+  try {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const now = audioContext.currentTime;
+    
+    // Create a crisp, spacey "beep" sound
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    const filter = audioContext.createBiquadFilter();
+    
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(800, now);
+    osc.frequency.exponentialRampToValueAtTime(600, now + 0.15);
+    
+    filter.type = 'highpass';
+    filter.frequency.value = 200;
+    
+    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.exponentialRampToValueAtTime(0, now + 0.15);
+    
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(audioContext.destination);
+    
+    osc.start(now);
+    osc.stop(now + 0.15);
+  } catch (e) {
+    // Silently fail if audio context unavailable
+  }
+}
+
 export function SoundToggle() {
   const [isMuted, setIsMuted] = useState(true);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -21,6 +53,8 @@ export function SoundToggle() {
   }, [isMuted]);
 
   const toggleSound = () => {
+    playButtonClickSound();
+    
     if (!isMuted) {
       // Stop music
       oscillatorsRef.current.forEach(osc => {
