@@ -20,10 +20,12 @@ export interface IStorage {
   createRoom(hostId: number): Promise<Room>;
   getRoomByCode(code: string): Promise<Room | undefined>;
   getRoom(id: number): Promise<Room | undefined>;
-  addPlayer(roomId: number, player: { username: string; avatarUrl?: string; isHost?: boolean; isBot?: boolean }): Promise<Player>;
+  addPlayer(roomId: number, player: { username: string; avatarUrl?: string; isHost?: boolean; isBot?: boolean; isAlive?: boolean }): Promise<Player>;
   getPlayers(roomId: number): Promise<Player[]>;
   getPlayer(id: number): Promise<Player | undefined>;
   removePlayer(id: number): Promise<void>;
+  updatePlayerAlive(playerId: number, isAlive: boolean): Promise<void>;
+  getAlivePlayers(roomId: number): Promise<Player[]>;
   updateRoomStatus(roomId: number, status: string): Promise<void>;
   updateRoomRound(roomId: number, round: number): Promise<void>;
   setGameItem(roomId: number, itemId: number, knowerPlayerId: number, somethingBroke: boolean): Promise<void>;
@@ -80,6 +82,16 @@ export class DatabaseStorage implements IStorage {
 
   async removePlayer(id: number): Promise<void> {
     await db.delete(players).where(eq(players.id, id));
+  }
+
+  async updatePlayerAlive(playerId: number, isAlive: boolean): Promise<void> {
+    await db.update(players).set({ isAlive }).where(eq(players.id, playerId));
+  }
+
+  async getAlivePlayers(roomId: number): Promise<Player[]> {
+    return await db.select().from(players).where(
+      and(eq(players.roomId, roomId), eq(players.isAlive, true))
+    );
   }
 
   async updateRoomStatus(roomId: number, status: string): Promise<void> {

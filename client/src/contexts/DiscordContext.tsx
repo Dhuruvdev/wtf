@@ -21,13 +21,6 @@ declare global {
     DiscordSDK?: {
       ready: () => Promise<void>;
     };
-    discordSdk?: {
-      ready: () => Promise<void>;
-      activityManager?: {
-        setActivity: (activity: any) => void;
-        clearActivity: () => void;
-      };
-    };
   }
 }
 
