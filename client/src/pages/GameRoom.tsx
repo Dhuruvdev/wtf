@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { useLocation, useRoute } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { AlertCircle, Users, Volume2, Copy } from "lucide-react";
+import { AlertCircle, Users, Copy, Plus } from "lucide-react";
 import iconUrl from "@assets/icon.png";
+import { SpaceBackground } from "@/components/SpaceBackground";
 
 export default function GameRoom() {
   const [, params] = useRoute("/room/:code");
@@ -18,6 +19,20 @@ export default function GameRoom() {
   const [error, setError] = useState("");
   const [timeLeft, setTimeLeft] = useState(240);
   const [isHost, setIsHost] = useState(false);
+  const [isAddingBot, setIsAddingBot] = useState(false);
+
+  const handleAddBot = async () => {
+    setIsAddingBot(true);
+    try {
+      // Simulate adding a bot player
+      const botName = `Bot ${Math.floor(Math.random() * 1000)}`;
+      setPlayers([...players, { id: players.length + 1, username: botName, score: 0, isHost: false, isBot: true }]);
+    } catch (err) {
+      setError("Failed to add bot player");
+    } finally {
+      setIsAddingBot(false);
+    }
+  };
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -44,8 +59,9 @@ export default function GameRoom() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen p-4">
+      <SpaceBackground />
+      <div className="max-w-6xl mx-auto relative z-10">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
@@ -67,7 +83,7 @@ export default function GameRoom() {
         </div>
 
         {error && (
-          <Card className="mb-4 border-red-700 bg-red-900/20 p-4">
+          <Card className="mb-4 border-red-700 bg-red-900/30 backdrop-blur-sm p-4">
             <div className="flex gap-2 text-red-300">
               <AlertCircle className="w-5 h-5 flex-shrink-0" />
               {error}
@@ -79,18 +95,33 @@ export default function GameRoom() {
           {/* Main Content */}
           <div className="lg:col-span-3">
             {gamePhase === "lobby" && (
-              <Card className="border-slate-700 bg-slate-800/50 p-8">
+              <Card className="border-slate-700 bg-slate-800/80 backdrop-blur-sm p-8">
                 <h2 className="text-2xl font-bold text-white mb-6">Waiting for Host to Start...</h2>
                 <div className="space-y-4">
-                  <p className="text-slate-300">Players in room:</p>
+                  <p className="text-slate-300">Players in room: {players.length}</p>
                   <div className="grid grid-cols-2 gap-3">
                     {players.map((p) => (
                       <div key={p.id} className="bg-slate-700 rounded-lg p-4">
                         <p className="text-white font-medium">{p.username}</p>
-                        {p.isHost && <p className="text-purple-400 text-sm">Host</p>}
+                        <div className="flex gap-2 mt-1">
+                          {p.isHost && <p className="text-purple-400 text-xs">Host</p>}
+                          {p.isBot && <p className="text-blue-400 text-xs">Bot</p>}
+                        </div>
                       </div>
                     ))}
                   </div>
+                  {isHost && players.length < 8 && (
+                    <Button 
+                      onClick={handleAddBot}
+                      disabled={isAddingBot}
+                      variant="outline"
+                      className="w-full border-slate-600 hover:bg-slate-700"
+                      data-testid="button-add-bot"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Bot Player
+                    </Button>
+                  )}
                   {isHost && (
                     <Button className="w-full bg-purple-600 hover:bg-purple-700 mt-6" data-testid="button-start-game">
                       Start Game
@@ -101,7 +132,7 @@ export default function GameRoom() {
             )}
 
             {gamePhase === "playing" && (
-              <Card className="border-slate-700 bg-slate-800/50 p-8">
+              <Card className="border-slate-700 bg-slate-800/80 backdrop-blur-sm p-8">
                 {isKnower ? (
                   <div>
                     <h2 className="text-2xl font-bold text-white mb-4">You Know What Broke!</h2>
@@ -130,7 +161,7 @@ export default function GameRoom() {
             )}
 
             {gamePhase === "voting" && (
-              <Card className="border-slate-700 bg-slate-800/50 p-8">
+              <Card className="border-slate-700 bg-slate-800/80 backdrop-blur-sm p-8">
                 <h2 className="text-2xl font-bold text-white mb-6">Who Did It? Vote!</h2>
                 <div className="grid grid-cols-2 gap-4">
                   {players.map((p) => (
@@ -148,7 +179,7 @@ export default function GameRoom() {
             )}
 
             {gamePhase === "results" && (
-              <Card className="border-slate-700 bg-slate-800/50 p-8">
+              <Card className="border-slate-700 bg-slate-800/80 backdrop-blur-sm p-8">
                 <h2 className="text-2xl font-bold text-white mb-6">Round Results</h2>
                 <div className="bg-slate-700 rounded-lg p-6 mb-6">
                   <p className="text-slate-400 text-sm mb-2">ITEM BROKEN:</p>
@@ -167,10 +198,10 @@ export default function GameRoom() {
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Players */}
-            <Card className="border-slate-700 bg-slate-800/50 p-4">
+            <Card className="border-slate-700 bg-slate-800/80 backdrop-blur-sm p-4">
               <div className="flex items-center gap-2 mb-4">
                 <Users className="w-5 h-5 text-purple-400" />
-                <h3 className="font-bold text-white">Players ({players.length})</h3>
+                <h3 className="font-bold text-white">Players ({players.length}/8)</h3>
               </div>
               <div className="space-y-2">
                 {players.map((p) => (
@@ -184,7 +215,7 @@ export default function GameRoom() {
 
             {/* Actions */}
             {gamePhase === "playing" && !isKnower && (
-              <Card className="border-slate-700 bg-slate-800/50 p-4">
+              <Card className="border-slate-700 bg-slate-800/80 backdrop-blur-sm p-4">
                 <h3 className="font-bold text-white mb-3">Give a Clue</h3>
                 <div className="space-y-2">
                   <input
