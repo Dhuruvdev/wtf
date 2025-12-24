@@ -38,9 +38,7 @@ export class DatabaseStorage implements IStorage {
     const code = nanoid(4).toUpperCase();
     const [room] = await db.insert(rooms).values({
       code,
-      hostId,
       status: "lobby",
-      maxRounds: 3,
     }).returning();
     return room;
   }
