@@ -1,54 +1,57 @@
-@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  /* Discord-inspired Palette */
-  --background: 223 7% 20%;      /* #2f3136 */
-  --foreground: 0 0% 100%;       /* #ffffff */
+  /* Pixel Art Palette - Yellow, Purple, White, Black */
+  --background: 0 0% 10%;        /* #1a1a1a - Near black */
+  --foreground: 0 0% 100%;       /* #ffffff - Pure white */
   
-  --card: 220 7% 18%;            /* #292b2f */
-  --card-foreground: 0 0% 100%;
+  --card: 0 0% 15%;              /* #262626 - Dark bg */
+  --card-foreground: 0 0% 100%;  /* White text */
 
-  --popover: 220 7% 18%;
+  --popover: 0 0% 15%;
   --popover-foreground: 0 0% 100%;
 
-  --primary: 235 86% 65%;        /* #5865F2 (Blurple) */
-  --primary-foreground: 0 0% 100%;
+  --primary: 60 100% 50%;        /* #FFFF00 - Bright yellow */
+  --primary-foreground: 0 0% 10%;  /* Black text on yellow */
 
-  --secondary: 223 7% 20%;
-  --secondary-foreground: 210 20% 98%;
+  --secondary: 280 90% 60%;      /* #9933FF - Vibrant purple */
+  --secondary-foreground: 0 0% 100%; /* White text */
 
-  --muted: 217 8% 26%;           /* #40444b */
-  --muted-foreground: 214 8% 65%; /* #b9bbbe */
+  --muted: 0 0% 30%;             /* #4d4d4d - Dark gray */
+  --muted-foreground: 0 0% 70%;  /* Light gray text */
 
-  --accent: 145 65% 39%;         /* Green for success/ready states */
+  --accent: 280 90% 60%;         /* Purple accent */
   --accent-foreground: 0 0% 100%;
 
-  --destructive: 359 87% 60%;    /* Red */
+  --destructive: 0 100% 50%;     /* Pure red */
   --destructive-foreground: 0 0% 100%;
 
-  --border: 216 7% 14%;          /* #202225 */
-  --input: 216 7% 14%;
-  --ring: 235 86% 65%;
+  --border: 0 0% 20%;            /* #333333 */
+  --input: 0 0% 20%;
+  --ring: 60 100% 50%;           /* Yellow ring */
 
-  --radius: 0.75rem;
+  --radius: 0;
 
-  --font-sans: 'Inter', sans-serif;
-  --font-display: 'Fredoka', sans-serif;
+  --font-sans: 'Press Start 2P', cursive;
+  --font-display: 'Press Start 2P', cursive;
 }
 
 @layer base {
   body {
     @apply bg-background text-foreground antialiased selection:bg-primary/30;
     font-family: var(--font-sans);
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
     @apply font-bold tracking-tight;
+    font-size: 1rem;
   }
 }
 
@@ -67,17 +70,63 @@
   @apply bg-[#40444b];
 }
 
+/* Pixel Art Styles */
+.pixel-button {
+  @apply px-4 py-2 bg-primary text-primary-foreground;
+  border: 3px solid #000;
+  box-shadow: 4px 4px 0 rgba(0,0,0,0.3);
+  font-family: 'Press Start 2P', cursive;
+  font-size: 0.75rem;
+  transition: all 0.05s;
+}
+
+.pixel-button:hover {
+  box-shadow: 2px 2px 0 rgba(0,0,0,0.3);
+  transform: translate(2px, 2px);
+}
+
+.pixel-button:active {
+  box-shadow: 0 0 0 rgba(0,0,0,0.3);
+  transform: translate(4px, 4px);
+}
+
+.pixel-border {
+  border: 2px solid #000;
+  box-shadow: 4px 4px 0 rgba(0,0,0,0.2);
+}
+
+.pixel-panel {
+  @apply bg-background;
+  border: 3px solid #000;
+  box-shadow: 6px 6px 0 rgba(0,0,0,0.3);
+  padding: 1rem;
+}
+
+.pixel-card {
+  @apply bg-card;
+  border: 2px solid #000;
+  box-shadow: 4px 4px 0 rgba(0,0,0,0.2);
+}
+
 /* Game Card Animations */
 @keyframes float {
-  0% { transform: translateY(0px); }
-  50% { transform: translateY(-5px); }
-  100% { transform: translateY(0px); }
+  0%, 100% { transform: translateY(0px) scaleY(1); }
+  50% { transform: translateY(-4px) scaleY(0.98); }
+}
+
+@keyframes pulse-pixel {
+  0%, 100% { box-shadow: 4px 4px 0 rgba(255,255,0,0.5), inset 0 0 0 2px #FFFF00; }
+  50% { box-shadow: 4px 4px 0 rgba(255,255,0,1), inset 0 0 0 2px #FFFF00; }
 }
 
 .animate-float {
-  animation: float 3s ease-in-out infinite;
+  animation: float 0.5s ease-in-out infinite;
+}
+
+.animate-pulse-pixel {
+  animation: pulse-pixel 1s ease-in-out infinite;
 }
 
 .glass-panel {
-  @apply bg-[#2f3136]/90 backdrop-blur-md border border-[#202225] shadow-xl;
+  @apply bg-card pixel-panel;
 }
