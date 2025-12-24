@@ -1,38 +1,74 @@
-import { type User, type InsertUser } from "@shared/schema";
-import { randomUUID } from "crypto";
-
-// modify the interface with any CRUD methods
-// you might need
+import { db } from "./db";
+import {
+  rooms,
+  players,
+  type Room,
+  type Player,
+  type CreateRoomRequest,
+  type JoinRoomRequest
+} from "@shared/schema";
+import { eq, and } from "drizzle-orm";
+import { nanoid } from "nanoid";
 
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  createRoom(hostSocketId: string): Promise<Room>;
+  getRoomByCode(code: string): Promise<Room | undefined>;
+  getRoom(id: number): Promise<Room | undefined>;
+  addPlayer(roomId: number, player: { socketId: string, username: string, avatarUrl?: string, isHost?: boolean }): Promise<Player>;
+  getPlayers(roomId: number): Promise<Player[]>;
+  getPlayerBySocketId(socketId: string): Promise<Player | undefined>;
+  removePlayer(socketId: string): Promise<void>;
+  updateRoomStatus(roomId: number, status: string): Promise<void>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-
-  constructor() {
-    this.users = new Map();
+export class DatabaseStorage implements IStorage {
+  async createRoom(hostSocketId: string): Promise<Room> {
+    const code = nanoid(4).toUpperCase();
+    const [room] = await db.insert(rooms).values({
+      code,
+      hostSocketId,
+      status: "lobby",
+    }).returning();
+    return room;
   }
 
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+  async getRoomByCode(code: string): Promise<Room | undefined> {
+    const [room] = await db.select().from(rooms).where(eq(rooms.code, code));
+    return room;
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+  async getRoom(id: number): Promise<Room | undefined> {
+    const [room] = await db.select().from(rooms).where(eq(rooms.id, id));
+    return room;
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+  async addPlayer(roomId: number, player: { socketId: string, username: string, avatarUrl?: string, isHost?: boolean }): Promise<Player> {
+    const [newPlayer] = await db.insert(players).values({
+      roomId,
+      socketId: player.socketId,
+      username: player.username,
+      avatarUrl: player.avatarUrl,
+      isHost: player.isHost || false,
+    }).returning();
+    return newPlayer;
+  }
+
+  async getPlayers(roomId: number): Promise<Player[]> {
+    return await db.select().from(players).where(eq(players.roomId, roomId));
+  }
+
+  async getPlayerBySocketId(socketId: string): Promise<Player | undefined> {
+    const [player] = await db.select().from(players).where(eq(players.socketId, socketId));
+    return player;
+  }
+
+  async removePlayer(socketId: string): Promise<void> {
+    await db.delete(players).where(eq(players.socketId, socketId));
+  }
+
+  async updateRoomStatus(roomId: number, status: string): Promise<void> {
+    await db.update(rooms).set({ status }).where(eq(rooms.id, roomId));
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
