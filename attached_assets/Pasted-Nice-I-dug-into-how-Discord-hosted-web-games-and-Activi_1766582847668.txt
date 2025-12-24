@@ -1,0 +1,170 @@
+Nice — I dug into how Discord-hosted web games and Activities work, what players actually love, and built a full game concept you can ship under the brand thats.wtf. I included concrete integration notes (Discord Activities / Embedded App SDK / Social SDK / Game SDK), the player loop, MVP tech stack, monetization & moderation ideas, and a short roadmap so you can start prototyping immediately.
+
+1) Quick pitch (elevator)
+
+thats.wtf — “Micro-madness: Voice + Reaction Party”
+A fast, social voice-channel party game that mixes short asymmetric rounds (one “mission” player vs the rest) with microgames, live voice cues, and community-driven content. Launchable directly in Discord as an Activity (iframe) so players jump in from voice channels with zero installs. Great for casual game nights and server events.
+
+2) Why this fits Discord right now
+
+Discord Activities let you embed multiplayer social experiences (iframe) that users can launch straight from voice channels — low friction = high adoption. 
+
+Social features (identity, invites, presence) are available via the Social SDK — useful for frictionless login and friend invites. 
+
+Examples of successful Activities and party games on Discord (Sketch Heads, Poker Night, Chess in the Park) show players prefer short, voice-enabled, highly social games. 
+
+Discord provides Rich Presence and Game SDK tooling if you want deeper integration (leaderboards, presence updates). 
+
+
+3) Core game concept (the fun)
+
+Name: thats.wtf — Micro-madness
+Players: 4–12 (voice channel)
+Session length: 5–12 minutes (best for repeated plays)
+Round structure (3 phases):
+
+1. Pick the WTF — a short prompt/mission chosen by the server or algorithm (e.g., “Convince us you’re an alien in 20s”, “Sing one-line of a made-up jingle”, “Lie about the meme and don’t get caught”).
+
+
+2. Play the microgames — 3 rapid microgames (10–40s each). Microgames use voice reactions, quick web UI taps, or chat tokens: examples include Voice-Act (mimic an emotion), Quick Draw (draw on canvas, others guess), Emoji Relay (react chain), and Bluff Vote.
+
+
+3. Vote & Reveal — players vote (UI buttons) for winner/most-convincing/hidden role; rewards distributed; next round.
+
+
+
+Core tension: asymmetric roles + real-time social cues in voice (bluffs/smacktalk) create memorable interactions and hilarity — perfect for streaming/clip creation.
+
+4) Why it’ll stick (retention & virality)
+
+Low friction: one click to launch in voice channel via Activities → instant participation. 
+
+Clip & share loop: rounds are short and produce funny moments users will clip to socials.
+
+Community content: allow servers to submit custom “WTF prompts” and vote top prompts into rotation. Server creators can brand their prompt packs (monetizable).
+
+Asymmetric play: rotating “star player” role gives variety and replayability.
+
+
+5) Discord integration plan (practical)
+
+Embedded App / Activities (iframe): host the game frontend as a secure web app and register as a Discord Activity so users can launch it from voice channels. Use the Embedded App SDK to handle lifecycle and identity. 
+
+Social SDK: quick sign-in and friend invites without forcing a separate account. 
+
+Optional Rich Presence/Game SDK: update presence, show “playing thats.wtf”, or attach session metadata for invites and match info. 
+
+Bot fallback: provide a companion Discord bot for older clients or non-voice game modes — handles matchmaking, leaderboard posts, and premium unlocks.
+
+
+6) Minimal Viable Product (MVP) — prioritize these
+
+1. Single Activity iframe that launches in voice channels and supports 4 players. (Core loop only: Pick Mission → 2 microgames → vote) — must. 
+
+
+2. Voice signal integration: capture basic voice activity (who’s speaking) to trigger certain microgames (no audio recording). Use voice activity indicators rather than raw audio capture to avoid privacy issues.
+
+
+3. UI: small responsive canvas for microgames, emoji vote buttons, small scoreboard.
+
+
+4. Server options: host per-server prompt packs and custom prompts.
+
+
+5. Analytics & clip hook: easy button to export a 20s highlight clip (client-side) for social share.
+
+
+
+7) Example microgames (fast list)
+
+Voice-Act: given a phrase/emotion; star player must act using voice only; others press “guess” fast.
+
+Emoji Relay: chain reactions: each player must respond with next emoji within 5s.
+
+Bluff & Call: star makes a statement; players vote true/false; points for deceiver or callers.
+
+Canvas Snap: 25s draw + instant guessing (like skribbl.io). (Browser canvas) 
+
+
+8) Tech stack recommendation (web-first)
+
+Frontend: React + TypeScript, minimal Tailwind (or your design system). Use websockets (Socket.io) for low-latency microgame sync.
+
+Backend: Node (Fastify/Express) + Redis for session state and pub/sub; horizontally scale sessions.
+
+Hosting: edge CDN + serverless for scale (Vercel/Cloudflare Pages for frontend, small fleet for real-time).
+
+Discord integration: Embedded App SDK (Activity) + Social SDK, and a companion bot using discord.js or pycord for admin features. 
+
+
+9) Monetization & growth
+
+Free core with cosmetic packs (avatar frames, reaction sound packs).
+
+Server Premium: paid prompt packs, custom server branding, private event mode, bigger rooms.
+
+Sponsored prompt packs: collabs with creators/influencers for branded prompts.
+
+Use a referral bonus (invite friend to join a session → earn a cosmetic).
+
+
+10) Moderation & safety (must-haves)
+
+No audio recording unless explicit user consent; prefer voice-activity metadata.
+
+Report & block in-game options; server owners can blacklist prompts.
+
+Rate limits and profanity filters for community prompts.
+
+Auto-moderation for image uploads/drawings using safe-content APIs.
+
+
+11) Roadmap (concrete 6–12 week plan)
+
+Week 0–2: wireframes + MVP tech spike (Embedded App iframe + simple microgame engine).
+Week 3–5: core microgames, multiplayer sync, voting; register Activity and test locally. 
+Week 6–8: Social SDK sign-in, leaderboards, basic monetization hooks. 
+Week 9–12: polish, analytics, server admin features, launch to selected communities / Discord App Directory submission.
+
+12) Competitive edge & branding for thats.wtf
+
+Brand voice: irreverent, meme-native, quick, and clipped. Name suits short viral clips and social sharing.
+
+Differentiator: voice-first microgames + server-generated content — nobody owns the “best short voice party loop” inside Discord yet. Use “that’s.wtf moments” as the shareable clip branding.
+
+
+13) Quick prototype checklist (what to build now)
+
+Basic frontend with 1 microgame (Voice-Act) + vote UI.
+
+Socket server to sync players and votes.
+
+Embedded App registration and local Activity testing (follow Discord docs). 
+
+Companion bot to announce sessions & post leaderboard.
+
+
+14) Helpful links I used (for your devs)
+
+Discord Activities overview & docs (how to register/build an Activity). 
+
+Discord Social SDK (quick sign-in & sharing). 
+
+Discord Game SDK / Rich Presence docs (optional deeper integration). 
+
+Sample game integration repo (github sample). 
+
+
+
+---
+
+If you want, I can now:
+
+convert the MVP checklist into a step-by-step Trello-style task list, or
+
+generate starter React code for the Voice-Act microgame + a simple Socket.io server (ready to paste into Replit), or
+
+write the copy for your Discord App Directory listing & store/landing page.
+
+
+Which one do you want first?
