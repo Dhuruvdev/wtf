@@ -1,253 +1,214 @@
-import { useEffect, useState } from "react";
-import { useRoute, useLocation } from "wouter";
-import { useRoom } from "@/hooks/use-rooms";
-import { useGameSocket } from "@/hooks/use-socket";
-import { GameHeader } from "@/components/GameHeader";
-import { PlayerList } from "@/components/PlayerList";
+import { useState, useEffect } from "react";
+import { useLocation, useRoute } from "wouter";
 import { Button } from "@/components/ui/button";
-import { WS_EVENTS } from "@shared/schema";
-import { Loader2, Play, Share2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { useQueryClient } from "@tanstack/react-query";
-import { api } from "@shared/routes";
-import { motion } from "framer-motion";
-import { useGameStore } from "@/stores/gameStore";
-import { VoiceActGame } from "@/components/microgames/VoiceActGame";
-import { CanvasDrawGame } from "@/components/microgames/CanvasDrawGame";
-import { EmojiRelayGame } from "@/components/microgames/EmojiRelayGame";
-import { BluffVoteGame } from "@/components/microgames/BluffVoteGame";
+import { Card } from "@/components/ui/card";
+import { AlertCircle, Users, Volume2, Copy } from "lucide-react";
+import iconUrl from "@assets/icon.png";
 
 export default function GameRoom() {
   const [, params] = useRoute("/room/:code");
-  const [, setLocation] = useLocation();
-  const roomCode = params?.code;
-  const { data: room, isLoading, error } = useRoom(roomCode);
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const {
-    setRoom,
-    setCurrentPlayer,
-    setActiveMicrogame,
-    setMicrogamePhase,
-    activeMicrogame,
-    currentPlayer,
-  } = useGameStore();
-  const [gameStartTime, setGameStartTime] = useState<number | null>(null);
+  const [, navigate] = useLocation();
+  const code = params?.code;
+  const [gamePhase, setGamePhase] = useState<"lobby" | "playing" | "voting" | "results">("lobby");
+  const [players, setPlayers] = useState<any[]>([]);
+  const [isKnower, setIsKnower] = useState(false);
+  const [broken, setBroken] = useState("");
+  const [clueInput, setClueInput] = useState("");
+  const [clues, setClues] = useState<any[]>([]);
+  const [error, setError] = useState("");
+  const [timeLeft, setTimeLeft] = useState(240);
+  const [isHost, setIsHost] = useState(false);
 
-  // Get current player ID from storage
-  const currentPlayerId = roomCode ? Number(localStorage.getItem(`player_${roomCode}`)) : undefined;
-  
   useEffect(() => {
-    if (room) {
-      setRoom(room);
-      const player = room.players.find((p) => p.id === currentPlayerId);
-      if (player) setCurrentPlayer(player);
-    }
-  }, [room, currentPlayerId, setRoom, setCurrentPlayer]);
+    const timer = setInterval(() => {
+      setTimeLeft((t) => (t > 0 ? t - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [gamePhase]);
 
-  // Game loop - rotate through games every 8 seconds
-  useEffect(() => {
-    if (!gameStartTime || !room || room.status !== 'playing') return;
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
 
-    const games: Array<'voice-act' | 'canvas-draw' | 'emoji-relay' | 'bluff-vote'> = [
-      'voice-act', 'canvas-draw', 'emoji-relay', 'bluff-vote'
-    ];
-
-    const interval = setInterval(() => {
-      const elapsed = Date.now() - gameStartTime;
-      const gameIndex = Math.floor(elapsed / 8000) % games.length;
-      
-      if (gameIndex < games.length) {
-        setActiveMicrogame(games[gameIndex]);
-        setMicrogamePhase('playing');
-      }
-    }, 500);
-
-    return () => clearInterval(interval);
-  }, [gameStartTime, room, setActiveMicrogame, setMicrogamePhase]);
-
-  const isHost = room?.players.find(p => p.id === currentPlayerId)?.isHost;
-
-  // Socket connection
-  const { sendMessage } = useGameSocket(room?.code, (type, payload) => {
-    console.log("WS Received:", type, payload);
-    
-    if (type === WS_EVENTS.PHASE_CHANGE) {
-      setActiveMicrogame(payload.microgame);
-      setMicrogamePhase(payload.phase);
-    }
-
-    // Invalidate room query on updates to sync state
-    if ([WS_EVENTS.UPDATE_ROOM, WS_EVENTS.JOIN, WS_EVENTS.LEAVE, WS_EVENTS.START_GAME].includes(type as any)) {
-      queryClient.invalidateQueries({ queryKey: [api.rooms.get.path, roomCode] });
-    }
-
-    if (type === "ERROR") {
-      toast({
-        title: "Error",
-        description: payload.message,
-        variant: "destructive",
-      });
-    }
-  });
-
-  const handleStartGame = async () => {
-    if (!room) return;
-    try {
-      const res = await fetch(`/api/rooms/${room.id}/start`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (!res.ok) throw new Error('Failed to start game');
-      
-      // Start game loop on client
-      setGameStartTime(Date.now());
-      setActiveMicrogame('voice-act');
-      setMicrogamePhase('playing');
-      
-      // Also send WS message for server tracking
-      sendMessage(WS_EVENTS.START_GAME, { roomId: room.id });
-      
-      // Refresh room to get updated status
-      queryClient.invalidateQueries({ queryKey: [api.rooms.get.path, roomCode] });
-    } catch (err) {
-      toast({
-        title: 'Error',
-        description: 'Failed to start game',
-        variant: 'destructive',
-      });
+  const handleSubmitClue = () => {
+    if (clueInput.trim()) {
+      setClues([...clues, clueInput]);
+      setClueInput("");
     }
   };
 
-  const handleCopyInvite = () => {
-    navigator.clipboard.writeText(window.location.href);
-    toast({
-      title: "Copied!",
-      description: "Room link copied to clipboard",
-    });
-  };
-
-  // Error / Loading Handling
-  if (error) {
-    return (
-      <div className="h-screen flex flex-col items-center justify-center gap-4 bg-[#36393f] text-white">
-        <h2 className="text-xl font-bold text-red-400">Failed to load room</h2>
-        <p className="text-muted-foreground">{error.message}</p>
-        <Button onClick={() => setLocation("/")}>Back to Lobby</Button>
-      </div>
-    );
-  }
-
-  if (isLoading || !room) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-[#36393f]">
-        <Loader2 className="w-10 h-10 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  // GAME PHASES RENDERER
-  const renderGameContent = () => {
-    switch (room.status) {
-      case "lobby":
-        return (
-          <div className="flex flex-col items-center justify-center h-full gap-8 max-w-2xl mx-auto text-center">
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="space-y-4"
-            >
-              <h2 className="text-3xl font-bold text-white">Waiting for players...</h2>
-              <div className="p-4 bg-[#202225] rounded-xl inline-flex items-center gap-4 border border-[#2f3136]">
-                <span className="text-muted-foreground uppercase text-xs font-bold tracking-wider">Room Code</span>
-                <span className="text-2xl font-mono font-bold tracking-widest text-primary">{room.code}</span>
-                <Button size="icon" variant="ghost" className="h-8 w-8 ml-2" onClick={handleCopyInvite}>
-                  <Share2 className="w-4 h-4" />
-                </Button>
-              </div>
-            </motion.div>
-
-            {isHost && (
-              <div className="space-y-2">
-                <Button 
-                  size="lg" 
-                  className="bg-green-600 hover:bg-green-700 text-white font-bold px-12 h-14 text-lg shadow-lg shadow-green-900/20"
-                  onClick={handleStartGame}
-                  disabled={room.players.length < 2}
-                >
-                  <Play className="mr-2 w-5 h-5" />
-                  START GAME
-                </Button>
-                {room.players.length < 2 && (
-                  <p className="text-yellow-500/80 text-sm">Need at least 2 players to start</p>
-                )}
-              </div>
-            )}
-            
-            {!isHost && (
-              <p className="text-muted-foreground animate-pulse">
-                Waiting for host to start...
-              </p>
-            )}
-          </div>
-        );
-
-      case "playing":
-      case "microgame":
-        return (
-          <div className="flex flex-col items-center justify-center h-full w-full px-4">
-            {activeMicrogame === 'voice-act' && currentPlayer && (
-              <VoiceActGame starPlayerId={room.players[0]?.id || 0} timeLimit={20} />
-            )}
-            {activeMicrogame === 'canvas-draw' && (
-              <CanvasDrawGame timeLimit={25} />
-            )}
-            {activeMicrogame === 'emoji-relay' && (
-              <EmojiRelayGame timeLimit={15} />
-            )}
-            {activeMicrogame === 'bluff-vote' && currentPlayer && (
-              <BluffVoteGame starPlayerId={room.players[0]?.id || 0} timeLimit={20} />
-            )}
-            {!activeMicrogame && (
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="text-center space-y-4"
-              >
-                <h2 className="text-4xl font-display font-bold text-primary">Round {room.round}</h2>
-                <div className="p-12 bg-[#202225] rounded-3xl border border-[#2f3136] shadow-2xl">
-                  <p className="text-xl text-muted-foreground">Get ready!</p>
-                </div>
-              </motion.div>
-            )}
-          </div>
-        );
-
-      default:
-        return <div>Unknown game state: {room.status}</div>;
-    }
+  const handleCopyCode = () => {
+    navigator.clipboard.writeText(code || "");
   };
 
   return (
-    <div className="h-screen bg-[#36393f] flex flex-col overflow-hidden text-foreground font-sans">
-      <GameHeader 
-        roomCode={room.code} 
-        roomId={room.id}
-        round={room.round || 0}
-        isLobby={room.status === 'lobby'}
-      />
-      
-      {/* Main Game Area */}
-      <main className="flex-1 relative overflow-y-auto p-4 md:p-8">
-        {renderGameContent()}
-      </main>
-
-      {/* Player Strip Footer */}
-      <footer className="bg-[#2f3136] border-t border-[#202225] p-4 pb-8 z-10 shadow-[0_-4px_20px_rgba(0,0,0,0.2)]">
-        <div className="max-w-7xl mx-auto">
-          <PlayerList players={room.players} currentPlayerId={currentPlayerId} />
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-3">
+            <img src={iconUrl} alt="Icon" className="h-10 w-10 drop-shadow-lg" data-testid="img-icon" />
+            <div>
+              <h1 className="text-3xl font-bold text-white">WHO BROKE IT?</h1>
+              <div className="flex items-center gap-2 mt-1">
+                <p className="text-slate-400">Room: <span className="font-mono text-purple-400">{code}</span></p>
+                <Button size="sm" variant="ghost" onClick={handleCopyCode} className="h-6 w-6 p-0" data-testid="button-copy-code">
+                  <Copy className="w-3 h-3" />
+                </Button>
+              </div>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-2xl font-bold text-purple-400">{formatTime(timeLeft)}</p>
+            <p className="text-slate-400 text-sm">Round time</p>
+          </div>
         </div>
-      </footer>
+
+        {error && (
+          <Card className="mb-4 border-red-700 bg-red-900/20 p-4">
+            <div className="flex gap-2 text-red-300">
+              <AlertCircle className="w-5 h-5 flex-shrink-0" />
+              {error}
+            </div>
+          </Card>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Main Content */}
+          <div className="lg:col-span-3">
+            {gamePhase === "lobby" && (
+              <Card className="border-slate-700 bg-slate-800/50 p-8">
+                <h2 className="text-2xl font-bold text-white mb-6">Waiting for Host to Start...</h2>
+                <div className="space-y-4">
+                  <p className="text-slate-300">Players in room:</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {players.map((p) => (
+                      <div key={p.id} className="bg-slate-700 rounded-lg p-4">
+                        <p className="text-white font-medium">{p.username}</p>
+                        {p.isHost && <p className="text-purple-400 text-sm">Host</p>}
+                      </div>
+                    ))}
+                  </div>
+                  {isHost && (
+                    <Button className="w-full bg-purple-600 hover:bg-purple-700 mt-6" data-testid="button-start-game">
+                      Start Game
+                    </Button>
+                  )}
+                </div>
+              </Card>
+            )}
+
+            {gamePhase === "playing" && (
+              <Card className="border-slate-700 bg-slate-800/50 p-8">
+                {isKnower ? (
+                  <div>
+                    <h2 className="text-2xl font-bold text-white mb-4">You Know What Broke!</h2>
+                    <div className="bg-purple-900/30 border border-purple-700 rounded-lg p-6 mb-6">
+                      <p className="text-slate-400 text-sm mb-2">ITEM BROKEN:</p>
+                      <p className="text-3xl font-bold text-purple-300">{broken}</p>
+                    </div>
+                    <p className="text-slate-300 mb-4">Listen to others' clues and try to stay suspicious. Be vague and misleading!</p>
+                  </div>
+                ) : (
+                  <div>
+                    <h2 className="text-2xl font-bold text-white mb-4">Clue Phase</h2>
+                    <div className="bg-slate-700/30 rounded-lg p-6 mb-6">
+                      <p className="text-slate-300">You don't know what broke. Listen to the clues and figure out who's lying!</p>
+                    </div>
+                    <div className="space-y-3">
+                      {clues.map((clue, i) => (
+                        <div key={i} className="bg-slate-700 rounded-lg p-4">
+                          <p className="text-white">{clue}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </Card>
+            )}
+
+            {gamePhase === "voting" && (
+              <Card className="border-slate-700 bg-slate-800/50 p-8">
+                <h2 className="text-2xl font-bold text-white mb-6">Who Did It? Vote!</h2>
+                <div className="grid grid-cols-2 gap-4">
+                  {players.map((p) => (
+                    <Button
+                      key={p.id}
+                      variant="outline"
+                      className="border-slate-600 hover:bg-slate-700 h-20 text-white"
+                      data-testid={`button-vote-${p.id}`}
+                    >
+                      {p.username}
+                    </Button>
+                  ))}
+                </div>
+              </Card>
+            )}
+
+            {gamePhase === "results" && (
+              <Card className="border-slate-700 bg-slate-800/50 p-8">
+                <h2 className="text-2xl font-bold text-white mb-6">Round Results</h2>
+                <div className="bg-slate-700 rounded-lg p-6 mb-6">
+                  <p className="text-slate-400 text-sm mb-2">ITEM BROKEN:</p>
+                  <p className="text-2xl font-bold text-white">{broken}</p>
+                </div>
+                <div className="space-y-3">
+                  <p className="text-white">Knower received points for staying hidden!</p>
+                </div>
+                <Button className="w-full bg-purple-600 hover:bg-purple-700 mt-6" data-testid="button-next-round">
+                  Next Round
+                </Button>
+              </Card>
+            )}
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Players */}
+            <Card className="border-slate-700 bg-slate-800/50 p-4">
+              <div className="flex items-center gap-2 mb-4">
+                <Users className="w-5 h-5 text-purple-400" />
+                <h3 className="font-bold text-white">Players ({players.length})</h3>
+              </div>
+              <div className="space-y-2">
+                {players.map((p) => (
+                  <div key={p.id} className="flex items-center justify-between text-sm text-slate-300">
+                    <span>{p.username}</span>
+                    <span className="font-bold text-white">{p.score}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            {/* Actions */}
+            {gamePhase === "playing" && !isKnower && (
+              <Card className="border-slate-700 bg-slate-800/50 p-4">
+                <h3 className="font-bold text-white mb-3">Give a Clue</h3>
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    placeholder="Your clue..."
+                    value={clueInput}
+                    onChange={(e) => setClueInput(e.target.value)}
+                    className="w-full bg-slate-700 border border-slate-600 rounded-md px-3 py-2 text-white placeholder:text-slate-500 text-sm"
+                    data-testid="input-clue"
+                  />
+                  <Button
+                    size="sm"
+                    className="w-full bg-purple-600 hover:bg-purple-700"
+                    onClick={handleSubmitClue}
+                    data-testid="button-submit-clue"
+                  >
+                    Submit Clue
+                  </Button>
+                </div>
+              </Card>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

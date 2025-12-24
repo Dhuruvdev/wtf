@@ -2,33 +2,45 @@ import { db } from "./db";
 import {
   rooms,
   players,
+  gameItems,
+  clues,
+  votes,
   type Room,
   type Player,
-  type CreateRoomRequest,
-  type JoinRoomRequest
+  type GameItem,
+  type Clue,
+  type Vote,
 } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 export interface IStorage {
-  createRoom(hostSocketId: string): Promise<Room>;
+  createRoom(hostId: number): Promise<Room>;
   getRoomByCode(code: string): Promise<Room | undefined>;
   getRoom(id: number): Promise<Room | undefined>;
-  addPlayer(roomId: number, player: { socketId: string, username: string, avatarUrl?: string, isHost?: boolean }): Promise<Player>;
+  addPlayer(roomId: number, player: { username: string; avatarUrl?: string; isHost?: boolean; isBot?: boolean }): Promise<Player>;
   getPlayers(roomId: number): Promise<Player[]>;
-  getPlayerBySocketId(socketId: string): Promise<Player | undefined>;
-  removePlayer(socketId: string): Promise<void>;
+  getPlayer(id: number): Promise<Player | undefined>;
+  removePlayer(id: number): Promise<void>;
   updateRoomStatus(roomId: number, status: string): Promise<void>;
-  addAIPlayer(roomId: number): Promise<Player>;
+  updateRoomRound(roomId: number, round: number): Promise<void>;
+  setGameItem(roomId: number, itemId: number, knowerPlayerId: number, somethingBroke: boolean): Promise<void>;
+  addClue(roundId: number, playerId: number, clueText: string, isFake: boolean): Promise<Clue>;
+  addVote(roundId: number, voterId: number, accusedId: number): Promise<Vote>;
+  getVotes(roundId: number): Promise<Vote[]>;
+  addGameItem(roomId: number, name: string, category: string): Promise<GameItem>;
+  getGameItems(roomId: number): Promise<GameItem[]>;
+  getClues(roundId: number): Promise<Clue[]>;
 }
 
 export class DatabaseStorage implements IStorage {
-  async createRoom(hostSocketId: string): Promise<Room> {
+  async createRoom(hostId: number): Promise<Room> {
     const code = nanoid(4).toUpperCase();
     const [room] = await db.insert(rooms).values({
       code,
-      hostSocketId,
+      hostId,
       status: "lobby",
+      maxRounds: 3,
     }).returning();
     return room;
   }
@@ -43,13 +55,13 @@ export class DatabaseStorage implements IStorage {
     return room;
   }
 
-  async addPlayer(roomId: number, player: { socketId: string, username: string, avatarUrl?: string, isHost?: boolean }): Promise<Player> {
+  async addPlayer(roomId: number, player: { username: string; avatarUrl?: string; isHost?: boolean; isBot?: boolean }): Promise<Player> {
     const [newPlayer] = await db.insert(players).values({
       roomId,
-      socketId: player.socketId,
       username: player.username,
       avatarUrl: player.avatarUrl,
       isHost: player.isHost || false,
+      isBot: player.isBot || false,
     }).returning();
     return newPlayer;
   }
@@ -58,31 +70,69 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(players).where(eq(players.roomId, roomId));
   }
 
-  async getPlayerBySocketId(socketId: string): Promise<Player | undefined> {
-    const [player] = await db.select().from(players).where(eq(players.socketId, socketId));
+  async getPlayer(id: number): Promise<Player | undefined> {
+    const [player] = await db.select().from(players).where(eq(players.id, id));
     return player;
   }
 
-  async removePlayer(socketId: string): Promise<void> {
-    await db.delete(players).where(eq(players.socketId, socketId));
+  async removePlayer(id: number): Promise<void> {
+    await db.delete(players).where(eq(players.id, id));
   }
 
   async updateRoomStatus(roomId: number, status: string): Promise<void> {
     await db.update(rooms).set({ status }).where(eq(rooms.id, roomId));
   }
 
-  async addAIPlayer(roomId: number): Promise<Player> {
-    const aiNames = ['Bot Alpha', 'Bot Beta', 'Bot Gamma', 'Bot Delta', 'Bot Epsilon'];
-    const randomName = aiNames[Math.floor(Math.random() * aiNames.length)];
-    const aiSocketId = `ai-${nanoid()}`;
-    
-    const [newPlayer] = await db.insert(players).values({
-      roomId,
-      socketId: aiSocketId,
-      username: randomName,
-      avatarUrl: undefined,
+  async updateRoomRound(roomId: number, round: number): Promise<void> {
+    await db.update(rooms).set({ round }).where(eq(rooms.id, roomId));
+  }
+
+  async setGameItem(roomId: number, itemId: number, knowerPlayerId: number, somethingBroke: boolean): Promise<void> {
+    await db.update(rooms).set({
+      brokenItemId: itemId,
+      knowerPlayerId,
+      somethingBroke,
+    }).where(eq(rooms.id, roomId));
+  }
+
+  async addClue(roundId: number, playerId: number, clueText: string, isFake: boolean): Promise<Clue> {
+    const [clue] = await db.insert(clues).values({
+      roundId,
+      playerId,
+      clueText,
+      isFake,
     }).returning();
-    return newPlayer;
+    return clue;
+  }
+
+  async addVote(roundId: number, voterId: number, accusedId: number): Promise<Vote> {
+    const [vote] = await db.insert(votes).values({
+      roundId,
+      voterId,
+      accusedId,
+    }).returning();
+    return vote;
+  }
+
+  async getVotes(roundId: number): Promise<Vote[]> {
+    return await db.select().from(votes).where(eq(votes.roundId, roundId));
+  }
+
+  async addGameItem(roomId: number, name: string, category: string): Promise<GameItem> {
+    const [item] = await db.insert(gameItems).values({
+      roomId,
+      name,
+      category,
+    }).returning();
+    return item;
+  }
+
+  async getGameItems(roomId: number): Promise<GameItem[]> {
+    return await db.select().from(gameItems).where(eq(gameItems.roomId, roomId));
+  }
+
+  async getClues(roundId: number): Promise<Clue[]> {
+    return await db.select().from(clues).where(eq(clues.roundId, roundId));
   }
 }
 

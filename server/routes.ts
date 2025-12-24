@@ -58,73 +58,71 @@ export async function registerRoutes(
   }
 
   // API Routes
-  app.post(api.rooms.create.path, async (req, res) => {
+  app.post("/api/rooms/create", async (req, res) => {
     try {
-      const input = api.rooms.create.input.parse(req.body);
-      // For MVP, we assume a socket connection established first, 
-      // but in REST flow we might just create room then connect socket.
-      // We'll use a placeholder ID if no socket yet, or expect socketId in body if we were advanced.
-      const room = await storage.createRoom("placeholder-socket-id");
+      const { username, avatarUrl } = req.body;
+      if (!username) {
+        return res.status(400).json({ message: "Username required" });
+      }
       
+      const room = await storage.createRoom(0);
       const player = await storage.addPlayer(room.id, {
-        socketId: "placeholder-socket-id", // Update this when WS connects?
-        username: input.username,
-        avatarUrl: input.avatarUrl,
-        isHost: true
+        username,
+        avatarUrl,
+        isHost: true,
       });
 
       res.status(201).json({ 
         code: room.code,
-        playerId: player.id 
+        playerId: player.id,
+        roomId: room.id
       });
     } catch (err) {
-      if (err instanceof z.ZodError) {
-        return res.status(400).json({
-          message: err.errors[0].message,
-          field: err.errors[0].path.join('.'),
-        });
-      }
-      throw err;
+      console.error("Create room error", err);
+      res.status(500).json({ message: "Failed to create room" });
     }
   });
 
-  app.post(api.rooms.join.path, async (req, res) => {
+  app.post("/api/rooms/join", async (req, res) => {
     try {
-      const input = api.rooms.join.input.parse(req.body);
-      const room = await storage.getRoomByCode(input.code);
+      const { code, username, avatarUrl } = req.body;
+      if (!code || !username) {
+        return res.status(400).json({ message: "Code and username required" });
+      }
       
+      const room = await storage.getRoomByCode(code);
       if (!room) {
         return res.status(404).json({ message: "Room not found" });
       }
 
       const player = await storage.addPlayer(room.id, {
-        socketId: "placeholder-" + Date.now(),
-        username: input.username,
-        avatarUrl: input.avatarUrl,
+        username,
+        avatarUrl,
       });
 
       res.status(200).json({
         roomId: room.id,
-        playerId: player.id
+        playerId: player.id,
+        code: room.code
       });
     } catch (err) {
-       if (err instanceof z.ZodError) {
-        return res.status(400).json({
-          message: err.errors[0].message,
-          field: err.errors[0].path.join('.'),
-        });
-      }
-      return res.status(500).json({ message: "Internal server error" });
+      console.error("Join room error", err);
+      res.status(500).json({ message: "Failed to join room" });
     }
   });
 
-  app.get(api.rooms.get.path, async (req, res) => {
-    const room = await storage.getRoomByCode(req.params.code);
-    if (!room) {
-      return res.status(404).json({ message: "Room not found" });
+  app.get("/api/rooms/:code", async (req, res) => {
+    try {
+      const room = await storage.getRoomByCode(req.params.code);
+      if (!room) {
+        return res.status(404).json({ message: "Room not found" });
+      }
+      const players = await storage.getPlayers(room.id);
+      res.json({ ...room, players });
+    } catch (err) {
+      console.error("Get room error", err);
+      res.status(500).json({ message: "Failed to get room" });
     }
-    const players = await storage.getPlayers(room.id);
-    res.json({ ...room, players });
   });
 
   // Add AI player endpoint

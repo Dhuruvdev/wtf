@@ -8,29 +8,59 @@ import { z } from "zod";
 export const rooms = pgTable("rooms", {
   id: serial("id").primaryKey(),
   code: text("code").notNull().unique(),
-  status: text("status").notNull().default("lobby"), // lobby, mission_selection, microgame, voting, finished
+  status: text("status").notNull().default("lobby"), // lobby, playing, voting, results, finished
   round: integer("round").default(0),
+  maxRounds: integer("max_rounds").default(3),
   maxPlayers: integer("max_players").default(8),
-  hostSocketId: text("host_socket_id"),
-  gameState: jsonb("game_state").default({}), // Store current mission, active microgame, etc.
+  hostId: integer("host_id"),
+  knowerPlayerId: integer("knower_player_id"), // Player who knows what broke
+  brokenItemId: integer("broken_item_id"),
+  somethingBroke: boolean("something_broke").default(true), // WTF twist - sometimes nothing broke
+  roundStartTime: timestamp("round_start_time"),
+  gameState: jsonb("game_state").default({}),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const players = pgTable("players", {
   id: serial("id").primaryKey(),
   roomId: integer("room_id").notNull(),
-  socketId: text("socket_id").notNull(),
   username: text("username").notNull(),
-  discordId: text("discord_id"), // Optional, for Discord integration
   avatarUrl: text("avatar_url"),
   score: integer("score").default(0),
   isHost: boolean("is_host").default(false),
-  joinedAt: timestamp("joined_at").defaultNow(),
+  isBot: boolean("is_bot").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const gameItems = pgTable("game_items", {
+  id: serial("id").primaryKey(),
+  roomId: integer("room_id").notNull(),
+  name: text("name").notNull(), // What broke (e.g., "Lamp", "Phone", "Coffee Cup")
+  category: text("category").notNull(), // office, home, tech, etc.
+});
+
+export const clues = pgTable("clues", {
+  id: serial("id").primaryKey(),
+  roundId: integer("round_id").notNull(),
+  playerId: integer("player_id").notNull(),
+  clueText: text("clue_text").notNull(),
+  isFake: boolean("is_fake").default(true), // true = fake clue, false = real clue (knower only)
+});
+
+export const votes = pgTable("votes", {
+  id: serial("id").primaryKey(),
+  roundId: integer("round_id").notNull(),
+  voterId: integer("voter_id").notNull(),
+  accusedId: integer("accused_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // === RELATIONS ===
-export const roomsRelations = relations(rooms, ({ many }) => ({
+export const roomsRelations = relations(rooms, ({ many, one }) => ({
   players: many(players),
+  items: many(gameItems),
+  clues: many(clues),
+  votes: many(votes),
 }));
 
 export const playersRelations = relations(players, ({ one }) => ({
@@ -40,57 +70,83 @@ export const playersRelations = relations(players, ({ one }) => ({
   }),
 }));
 
-// === BASE SCHEMAS ===
-export const insertRoomSchema = createInsertSchema(rooms).omit({ 
-  id: true, 
-  createdAt: true, 
+export const gameItemsRelations = relations(gameItems, ({ one }) => ({
+  room: one(rooms, {
+    fields: [gameItems.roomId],
+    references: [rooms.id],
+  }),
+}));
+
+export const cluesRelations = relations(clues, ({ one }) => ({
+  player: one(players, {
+    fields: [clues.playerId],
+    references: [players.id],
+  }),
+}));
+
+export const votesRelations = relations(votes, ({ one }) => ({
+  voter: one(players, {
+    fields: [votes.voterId],
+    references: [players.id],
+  }),
+  accused: one(players, {
+    fields: [votes.accusedId],
+    references: [players.id],
+  }),
+}));
+
+// === SCHEMAS ===
+export const insertRoomSchema = createInsertSchema(rooms).omit({
+  id: true,
+  createdAt: true,
   status: true,
   round: true,
-  gameState: true
+  gameState: true,
+  knowerPlayerId: true,
+  brokenItemId: true,
+  roundStartTime: true,
+  somethingBroke: true,
 });
 
-export const insertPlayerSchema = createInsertSchema(players).omit({ 
-  id: true, 
-  roomId: true, 
-  score: true, 
-  isHost: true, 
-  joinedAt: true 
+export const insertPlayerSchema = createInsertSchema(players).omit({
+  id: true,
+  roomId: true,
+  score: true,
+  isHost: true,
+  isBot: true,
+  createdAt: true,
 });
 
-// === EXPLICIT API CONTRACT TYPES ===
+export const insertGameItemSchema = createInsertSchema(gameItems).omit({
+  id: true,
+});
 
+export const insertClueSchema = createInsertSchema(clues).omit({
+  id: true,
+});
+
+export const insertVoteSchema = createInsertSchema(votes).omit({
+  id: true,
+  createdAt: true,
+});
+
+// === TYPES ===
 export type Room = typeof rooms.$inferSelect;
 export type Player = typeof players.$inferSelect;
-
-export type CreateRoomRequest = {
-  username: string;
-  avatarUrl?: string;
-};
-
-export type JoinRoomRequest = {
-  code: string;
-  username: string;
-  avatarUrl?: string;
-};
-
-export type StartGameRequest = {
-  roomId: number;
-};
-
-export type UpdateGameStateRequest = {
-  phase: string;
-  data?: any;
-};
-
-export type RoomResponse = Room & {
-  players: Player[];
-};
+export type GameItem = typeof gameItems.$inferSelect;
+export type Clue = typeof clues.$inferSelect;
+export type Vote = typeof votes.$inferSelect;
 
 export const WS_EVENTS = {
-  JOIN: 'join',
-  LEAVE: 'leave',
-  UPDATE_ROOM: 'update_room',
-  START_GAME: 'start_game',
-  PHASE_CHANGE: 'phase_change',
-  MICROGAME_ACTION: 'microgame_action',
+  PLAYER_JOINED: 'player_joined',
+  PLAYER_LEFT: 'player_left',
+  GAME_STARTED: 'game_started',
+  ROUND_START: 'round_start',
+  ITEM_BROKEN: 'item_broken',
+  CLUE_PHASE: 'clue_phase',
+  CLUE_SUBMITTED: 'clue_submitted',
+  VOTING_PHASE: 'voting_phase',
+  VOTE_SUBMITTED: 'vote_submitted',
+  ROUND_RESULTS: 'round_results',
+  GAME_OVER: 'game_over',
 } as const;
