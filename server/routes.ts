@@ -2,7 +2,8 @@ import type { Express } from "express";
 import type { Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
-import { api, WS_EVENTS } from "@shared/routes";
+import { api } from "@shared/routes";
+import { WS_EVENTS } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(
@@ -109,6 +110,50 @@ export async function registerRoutes(
     }
     const players = await storage.getPlayers(room.id);
     res.json({ ...room, players });
+  });
+
+  // Start game endpoint
+  app.post('/api/rooms/:roomId/start', async (req, res) => {
+    try {
+      const roomId = Number(req.params.roomId);
+      const room = await storage.getRoom(roomId);
+      
+      if (!room) {
+        return res.status(404).json({ message: "Room not found" });
+      }
+
+      // Update room status to playing
+      await storage.updateRoomStatus(roomId, 'playing');
+      
+      // Broadcast start game event
+      broadcast(roomId, WS_EVENTS.START_GAME, { roomId });
+      
+      // Schedule microgame rotation
+      const games = ['voice-act', 'canvas-draw', 'emoji-relay', 'bluff-vote'];
+      let gameIndex = 0;
+      
+      const scheduleNextGame = () => {
+        const game = games[gameIndex % games.length];
+        const delay = gameIndex === 0 ? 2000 : 8000; // Initial delay, then 8s per game
+        
+        setTimeout(() => {
+          broadcast(roomId, WS_EVENTS.PHASE_CHANGE, {
+            microgame: game,
+            phase: 'playing'
+          });
+          
+          gameIndex++;
+          if (gameIndex < 8) scheduleNextGame(); // 8 rounds total
+        }, delay);
+      };
+      
+      scheduleNextGame();
+      
+      res.json({ success: true });
+    } catch (err) {
+      console.error('Failed to start game', err);
+      res.status(500).json({ message: "Failed to start game" });
+    }
   });
 
   return httpServer;

@@ -11,6 +11,11 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@shared/routes";
 import { motion } from "framer-motion";
+import { useGameStore } from "@/stores/gameStore";
+import { VoiceActGame } from "@/components/microgames/VoiceActGame";
+import { CanvasDrawGame } from "@/components/microgames/CanvasDrawGame";
+import { EmojiRelayGame } from "@/components/microgames/EmojiRelayGame";
+import { BluffVoteGame } from "@/components/microgames/BluffVoteGame";
 
 export default function GameRoom() {
   const [, params] = useRoute("/room/:code");
@@ -19,16 +24,37 @@ export default function GameRoom() {
   const { data: room, isLoading, error } = useRoom(roomCode);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const {
+    setRoom,
+    setCurrentPlayer,
+    setActiveMicrogame,
+    setMicrogamePhase,
+    activeMicrogame,
+    currentPlayer,
+  } = useGameStore();
 
   // Get current player ID from storage
   const currentPlayerId = roomCode ? Number(localStorage.getItem(`player_${roomCode}`)) : undefined;
   
+  useEffect(() => {
+    if (room) {
+      setRoom(room);
+      const player = room.players.find((p) => p.id === currentPlayerId);
+      if (player) setCurrentPlayer(player);
+    }
+  }, [room, currentPlayerId, setRoom, setCurrentPlayer]);
+
   const isHost = room?.players.find(p => p.id === currentPlayerId)?.isHost;
 
   // Socket connection
   const { sendMessage } = useGameSocket(room?.code, (type, payload) => {
     console.log("WS Received:", type, payload);
     
+    if (type === WS_EVENTS.PHASE_CHANGE) {
+      setActiveMicrogame(payload.microgame);
+      setMicrogamePhase(payload.phase);
+    }
+
     // Invalidate room query on updates to sync state
     if ([WS_EVENTS.UPDATE_ROOM, WS_EVENTS.JOIN, WS_EVENTS.LEAVE, WS_EVENTS.START_GAME].includes(type as any)) {
       queryClient.invalidateQueries({ queryKey: [api.rooms.get.path, roomCode] });
@@ -43,8 +69,22 @@ export default function GameRoom() {
     }
   });
 
-  const handleStartGame = () => {
-    sendMessage(WS_EVENTS.START_GAME, { roomId: room?.id });
+  const handleStartGame = async () => {
+    if (!room) return;
+    try {
+      const res = await fetch(`/api/rooms/${room.id}/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) throw new Error('Failed to start game');
+      sendMessage(WS_EVENTS.START_GAME, { roomId: room.id });
+    } catch (err) {
+      toast({
+        title: 'Error',
+        description: 'Failed to start game',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleCopyInvite = () => {
@@ -123,14 +163,31 @@ export default function GameRoom() {
       case "playing":
       case "microgame":
         return (
-          <div className="flex flex-col items-center justify-center h-full">
-            <h2 className="text-4xl font-display font-bold text-primary mb-4">Round {room.round}</h2>
-            <div className="p-12 bg-[#202225] rounded-3xl border border-[#2f3136] shadow-2xl">
-              <p className="text-xl text-muted-foreground">Microgame Placeholder</p>
-              <p className="text-sm mt-4 text-center text-muted-foreground/50">
-                (Game logic implementation would go here)
-              </p>
-            </div>
+          <div className="flex flex-col items-center justify-center h-full w-full px-4">
+            {activeMicrogame === 'voice-act' && currentPlayer && (
+              <VoiceActGame starPlayerId={room.players[0]?.id || 0} timeLimit={20} />
+            )}
+            {activeMicrogame === 'canvas-draw' && (
+              <CanvasDrawGame timeLimit={25} />
+            )}
+            {activeMicrogame === 'emoji-relay' && (
+              <EmojiRelayGame timeLimit={15} />
+            )}
+            {activeMicrogame === 'bluff-vote' && currentPlayer && (
+              <BluffVoteGame starPlayerId={room.players[0]?.id || 0} timeLimit={20} />
+            )}
+            {!activeMicrogame && (
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="text-center space-y-4"
+              >
+                <h2 className="text-4xl font-display font-bold text-primary">Round {room.round}</h2>
+                <div className="p-12 bg-[#202225] rounded-3xl border border-[#2f3136] shadow-2xl">
+                  <p className="text-xl text-muted-foreground">Get ready!</p>
+                </div>
+              </motion.div>
+            )}
           </div>
         );
 
