@@ -3,6 +3,7 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { DiscordProvider } from "@/contexts/DiscordContext";
 import JoinLobby from "@/pages/JoinLobby";
 import GameRoom from "@/pages/GameRoom";
 import NotFound from "@/pages/not-found";
@@ -20,10 +21,12 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Router />
-        <Toaster />
-      </TooltipProvider>
+      <DiscordProvider>
+        <TooltipProvider>
+          <Router />
+          <Toaster />
+        </TooltipProvider>
+      </DiscordProvider>
     </QueryClientProvider>
   );
 }

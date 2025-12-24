@@ -1,5 +1,6 @@
 import { db } from "./db";
 import {
+  users,
   rooms,
   players,
   gameItems,
@@ -10,6 +11,7 @@ import {
   type GameItem,
   type Clue,
   type Vote,
+  type User,
 } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import { nanoid } from "nanoid";
@@ -31,6 +33,9 @@ export interface IStorage {
   addGameItem(roomId: number, name: string, category: string): Promise<GameItem>;
   getGameItems(roomId: number): Promise<GameItem[]>;
   getClues(roundId: number): Promise<Clue[]>;
+  getUserByDiscordId(discordId: string): Promise<User | undefined>;
+  createUser(discordId: string, discordUsername: string, discordAvatar: string | undefined, discordEmail: string | undefined, discordToken: string): Promise<User>;
+  updateUserToken(userId: number, discordToken: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -143,6 +148,26 @@ export class DatabaseStorage implements IStorage {
       isBot: true,
     }).returning();
     return newPlayer;
+  }
+
+  async getUserByDiscordId(discordId: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.discordId, discordId));
+    return user;
+  }
+
+  async createUser(discordId: string, discordUsername: string, discordAvatar: string | undefined, discordEmail: string | undefined, discordToken: string): Promise<User> {
+    const [user] = await db.insert(users).values({
+      discordId,
+      discordUsername,
+      discordAvatar,
+      discordEmail,
+      discordToken,
+    }).returning();
+    return user;
+  }
+
+  async updateUserToken(userId: number, discordToken: string): Promise<void> {
+    await db.update(users).set({ discordToken }).where(eq(users.id, userId));
   }
 }
 

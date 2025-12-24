@@ -168,6 +168,8 @@ export const WS_EVENTS = {
   PLAYER_JOINED: 'player_joined',
   PLAYER_LEFT: 'player_left',
   GAME_STARTED: 'game_started',
+  START_GAME: 'start_game',
+  PHASE_CHANGE: 'phase_change',
   ROUND_START: 'round_start',
   ITEM_BROKEN: 'item_broken',
   CLUE_PHASE: 'clue_phase',
@@ -176,4 +178,15 @@ export const WS_EVENTS = {
   VOTE_SUBMITTED: 'vote_submitted',
   ROUND_RESULTS: 'round_results',
   GAME_OVER: 'game_over',
+  AI_JOINED: 'ai_joined',
 } as const;
+
+// === ZODS ===
+export const insertUserSchema = createInsertSchema(users).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type User = typeof users.$inferSelect;
+export type InsertUser = z.infer<typeof insertUserSchema>;
