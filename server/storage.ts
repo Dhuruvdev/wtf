@@ -134,6 +134,18 @@ export class DatabaseStorage implements IStorage {
   async getClues(roundId: number): Promise<Clue[]> {
     return await db.select().from(clues).where(eq(clues.roundId, roundId));
   }
+
+  async addAIPlayer(roomId: number): Promise<Player> {
+    const aiNames = ['Bot Alpha', 'Bot Beta', 'Bot Gamma', 'Bot Delta', 'Bot Epsilon', 'Bot Zeta', 'Bot Eta', 'Bot Theta'];
+    const randomName = aiNames[Math.floor(Math.random() * aiNames.length)];
+    
+    const [newPlayer] = await db.insert(players).values({
+      roomId,
+      username: randomName,
+      isBot: true,
+    }).returning();
+    return newPlayer;
+  }
 }
 
 export const storage = new DatabaseStorage();

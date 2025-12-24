@@ -26,9 +26,12 @@ export default function JoinLobby() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username }),
       });
+      if (!res.ok) throw new Error("Failed to create room");
       const data = await res.json();
+      localStorage.setItem(`user_${data.code}`, data.playerId?.toString() || "");
       navigate(`/room/${data.code}`);
     } catch (err) {
+      console.error("Create error", err);
       setError("Failed to create room");
     } finally {
       setIsCreating(false);
@@ -47,9 +50,12 @@ export default function JoinLobby() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, code: roomCode }),
       });
+      if (!res.ok) throw new Error("Failed to join room");
       const data = await res.json();
+      localStorage.setItem(`user_${roomCode}`, data.playerId?.toString() || "");
       navigate(`/room/${roomCode}`);
     } catch (err) {
+      console.error("Join error", err);
       setError("Failed to join room");
     } finally {
       setIsCreating(false);

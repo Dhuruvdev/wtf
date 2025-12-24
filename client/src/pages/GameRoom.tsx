@@ -10,6 +10,7 @@ export default function GameRoom() {
   const [, params] = useRoute("/room/:code");
   const [, navigate] = useLocation();
   const code = params?.code;
+  const [roomId, setRoomId] = useState<number | null>(null);
   const [gamePhase, setGamePhase] = useState<"lobby" | "playing" | "voting" | "results">("lobby");
   const [players, setPlayers] = useState<any[]>([]);
   const [isKnower, setIsKnower] = useState(false);
@@ -21,13 +22,41 @@ export default function GameRoom() {
   const [isHost, setIsHost] = useState(false);
   const [isAddingBot, setIsAddingBot] = useState(false);
 
+  // Load room data on mount
+  useEffect(() => {
+    const loadRoom = async () => {
+      if (!code) return;
+      try {
+        const res = await fetch(`/api/rooms/${code}`);
+        const data = await res.json();
+        setRoomId(data.id);
+        setPlayers(data.players || []);
+        // Check if current user is host
+        const currentUserId = localStorage.getItem(`user_${code}`);
+        const hostPlayer = data.players?.find((p: any) => p.isHost);
+        if (hostPlayer) setIsHost(hostPlayer.id === parseInt(currentUserId || "0"));
+      } catch (err) {
+        setError("Failed to load room");
+      }
+    };
+    loadRoom();
+  }, [code]);
+
   const handleAddBot = async () => {
+    if (!roomId) {
+      setError("Room not loaded");
+      return;
+    }
     setIsAddingBot(true);
     try {
-      // Simulate adding a bot player
-      const botName = `Bot ${Math.floor(Math.random() * 1000)}`;
-      setPlayers([...players, { id: players.length + 1, username: botName, score: 0, isHost: false, isBot: true }]);
+      const res = await fetch(`/api/rooms/${roomId}/add-ai`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const botPlayer = await res.json();
+      setPlayers([...players, botPlayer]);
     } catch (err) {
+      console.error("Add bot error", err);
       setError("Failed to add bot player");
     } finally {
       setIsAddingBot(false);
