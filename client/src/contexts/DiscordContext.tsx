@@ -21,6 +21,13 @@ declare global {
     DiscordSDK?: {
       ready: () => Promise<void>;
     };
+    discordSdk?: {
+      ready: () => Promise<void>;
+      activityManager?: {
+        setActivity: (activity: any) => void;
+        clearActivity: () => void;
+      };
+    };
   }
 }
 
@@ -36,13 +43,16 @@ export function DiscordProvider({ children }: { children: ReactNode }) {
       setIsLoading(true);
       const redirectUri = `${window.location.origin}/auth/discord/callback`;
 
-      if (!window.DiscordSDK) {
+      // Try new SDK first, then fallback to old
+      if (window.discordSdk) {
+        await window.discordSdk.ready();
+        setIsInitialized(true);
+      } else if (window.DiscordSDK) {
+        await window.DiscordSDK.ready();
+        setIsInitialized(true);
+      } else {
         console.warn('Discord SDK not yet loaded');
-        return;
       }
-
-      await window.DiscordSDK.ready();
-      setIsInitialized(true);
     } catch (error) {
       console.error('Failed to initialize Discord SDK:', error);
     } finally {

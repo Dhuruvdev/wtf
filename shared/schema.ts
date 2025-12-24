@@ -41,6 +41,7 @@ export const players = pgTable("players", {
   score: integer("score").default(0),
   isHost: boolean("is_host").default(false),
   isBot: boolean("is_bot").default(false),
+  isAlive: boolean("is_alive").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
