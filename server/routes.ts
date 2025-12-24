@@ -4,7 +4,81 @@ import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { WS_EVENTS } from "@shared/schema";
+import axios from "axios";
 import { z } from "zod";
+
+// Discord OAuth Types
+interface DiscordTokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  refresh_token: string;
+  scope: string;
+}
+
+interface DiscordUserResponse {
+  id: string;
+  username: string;
+  discriminator: string;
+  avatar: string | null;
+  email: string;
+}
+
+async function exchangeCodeForToken(code: string): Promise<DiscordTokenResponse> {
+  const clientId = process.env.DISCORD_CLIENT_ID;
+  const clientSecret = process.env.DISCORD_CLIENT_SECRET;
+  const redirectUri = `${process.env.REPLIT_DOMAINS || 'http://localhost:5000'}/auth/discord/callback`;
+
+  const response = await axios.post('https://discord.com/api/v10/oauth2/token', {
+    client_id: clientId,
+    client_secret: clientSecret,
+    code,
+    grant_type: 'authorization_code',
+    redirect_uri: redirectUri,
+    scope: 'identify email rpc',
+  });
+
+  return response.data;
+}
+
+async function getDiscordUser(accessToken: string): Promise<DiscordUserResponse> {
+  const response = await axios.get('https://discord.com/api/v10/users/@me', {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  return response.data;
+}
+
+async function handleDiscordCallback(code: string) {
+  try {
+    const tokenData = await exchangeCodeForToken(code);
+    const userData = await getDiscordUser(tokenData.access_token);
+
+    let user = await storage.getUserByDiscordId(userData.id);
+
+    if (!user) {
+      user = await storage.createUser(
+        userData.id,
+        userData.username,
+        userData.avatar || undefined,
+        userData.email,
+        tokenData.access_token
+      );
+    } else {
+      await storage.updateUserToken(user.id, tokenData.access_token);
+    }
+
+    return {
+      user,
+      accessToken: tokenData.access_token,
+    };
+  } catch (error) {
+    console.error('Discord OAuth error:', error);
+    throw new Error('Failed to authenticate with Discord');
+  }
+}
 
 export async function registerRoutes(
   httpServer: Server,
@@ -13,14 +87,17 @@ export async function registerRoutes(
   // WebSocket Setup - Track room membership
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
   const roomConnections = new Map<number, Set<WebSocket>>();
+  const userVoiceChannels = new Map<number, string>(); // userId -> voiceChannelId
 
   wss.on('connection', (ws) => {
     console.log('Client connected');
     let currentRoomId: number | null = null;
+    let currentUserId: number | null = null;
 
     ws.on('message', async (message) => {
       try {
         const data = JSON.parse(message.toString());
+        
         if (data.type === 'join' && data.roomCode) {
           const room = await storage.getRoomByCode(data.roomCode);
           if (room) {
@@ -30,7 +107,22 @@ export async function registerRoutes(
             }
             roomConnections.get(room.id)?.add(ws);
             console.log(`Client joined room ${room.id}`);
+            
+            // Broadcast player joined event
+            broadcast(room.id, WS_EVENTS.PLAYER_JOINED, { playerId: data.playerId });
           }
+        }
+        
+        // Voice channel context detection
+        if (data.type === 'voice_context' && data.voiceChannelId) {
+          currentUserId = data.userId;
+          userVoiceChannels.set(data.userId, data.voiceChannelId);
+          console.log(`User ${data.userId} in voice channel ${data.voiceChannelId}`);
+        }
+
+        // Real-time multiplayer sync
+        if (data.type === 'game_action' && currentRoomId) {
+          broadcast(currentRoomId, data.eventType, data.payload);
         }
       } catch (err) {
         console.error('Failed to parse message', err);
@@ -40,6 +132,9 @@ export async function registerRoutes(
     ws.on('close', () => {
       if (currentRoomId && roomConnections.has(currentRoomId)) {
         roomConnections.get(currentRoomId)?.delete(ws);
+        if (currentUserId) {
+          userVoiceChannels.delete(currentUserId);
+        }
       }
       console.log('Client disconnected');
     });
@@ -56,6 +151,25 @@ export async function registerRoutes(
       });
     }
   }
+
+  // Discord OAuth callback endpoint
+  app.get('/auth/discord/callback', async (req, res) => {
+    try {
+      const code = req.query.code as string;
+      if (!code) {
+        return res.status(400).json({ message: 'Missing authorization code' });
+      }
+
+      const { user, accessToken } = await handleDiscordCallback(code);
+      
+      // Store token in session/cookie and redirect
+      res.cookie('discord_token', accessToken, { httpOnly: true, secure: true });
+      res.redirect(`/?userId=${user.id}&token=${accessToken}`);
+    } catch (error) {
+      console.error('OAuth callback error:', error);
+      res.status(500).json({ message: 'Authentication failed' });
+    }
+  });
 
   // API Routes
   app.post("/api/rooms/create", async (req, res) => {

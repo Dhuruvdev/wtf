@@ -40,3 +40,8 @@ waitForPort = 5000
 
 [agent]
 expertMode = true
+
+[userenv]
+
+[userenv.shared]
+VITE_DISCORD_CLIENT_ID = "your_discord_client_id"

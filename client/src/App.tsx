@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DiscordProvider } from "@/contexts/DiscordContext";
+import { VoiceContextProvider } from "@/contexts/VoiceContext";
 import JoinLobby from "@/pages/JoinLobby";
 import GameRoom from "@/pages/GameRoom";
 import NotFound from "@/pages/not-found";
@@ -22,10 +23,12 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <DiscordProvider>
-        <TooltipProvider>
-          <Router />
-          <Toaster />
-        </TooltipProvider>
+        <VoiceContextProvider>
+          <TooltipProvider>
+            <Router />
+            <Toaster />
+          </TooltipProvider>
+        </VoiceContextProvider>
       </DiscordProvider>
     </QueryClientProvider>
   );

@@ -16,6 +16,14 @@ interface DiscordContextType {
   logout: () => void;
 }
 
+declare global {
+  interface Window {
+    DiscordSDK?: {
+      ready: () => Promise<void>;
+    };
+  }
+}
+
 const DiscordContext = createContext<DiscordContextType | undefined>(undefined);
 
 export function DiscordProvider({ children }: { children: ReactNode }) {
@@ -26,7 +34,6 @@ export function DiscordProvider({ children }: { children: ReactNode }) {
   const initializeSDK = async () => {
     try {
       setIsLoading(true);
-      const clientId = import.meta.env.VITE_DISCORD_CLIENT_ID;
       const redirectUri = `${window.location.origin}/auth/discord/callback`;
 
       if (!window.DiscordSDK) {

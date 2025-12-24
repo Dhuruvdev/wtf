@@ -1,135 +1,189 @@
-# WHO BROKE IT? - Gaming Platform
+# Who Broke It? - Discord Activity Game
 
-## Overview
-Professional HTML5 gaming platform featuring "WHO BROKE IT?" - a social deception game where players accuse each other while one player secretly knows what broke.
+## Project Overview
+A real-time multiplayer deception game built with Express, React, PostgreSQL, and WebSocket. Players experience social deception through mini-games with Discord integration and Activity SDK support.
 
-**Game Type:** Social Deception / Chaos
-**Players:** 3-8
-**Round Duration:** 2-4 minutes per round
-**Max Rounds:** 3 (configurable)
+## Recent Updates (2025-12-24)
 
-## Project Status
-✅ **COMPLETE** - Fully functional gaming platform with professional UI
+### Phase 1: Discord OAuth2 Setup ✅
+- **Database Schema**: Added `users` table with Discord profile data
+  - `discordId` (unique)
+  - `discordUsername`, `discordAvatar`, `discordEmail`
+  - `discordToken` for API access
+- **Backend OAuth Flow**: 
+  - `exchangeCodeForToken()`: Handles Discord authorization code exchange
+  - `getDiscordUser()`: Fetches authenticated user profile
+  - `handleDiscordCallback()`: Creates or updates user in database
+  - Route: `GET /auth/discord/callback` - OAuth redirect endpoint
+- **Secrets**: DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET (stored securely)
 
-### Completed Features
-- ✅ Database schema with game mechanics (rooms, players, clues, votes, items)
-- ✅ Professional UI with animated space background
-- ✅ Logo and icon assets integrated professionally
-- ✅ Bot player functionality (add bots before game starts)
-- ✅ Join Lobby page with create/join rooms
-- ✅ Game Room with phase management (lobby, playing, voting, results)
-- ✅ Player list sidebar with score tracking
-- ✅ Clue submission system
-- ✅ Timer for round tracking
-- ✅ Backdrop-blur glass-morphism UI components
-- ✅ Express backend API routes
-- ✅ Responsive design for all screen sizes
+### Phase 2: Activity SDK Initialization ✅
+- **DiscordContext** (`client/src/contexts/DiscordContext.tsx`):
+  - Manages Discord SDK initialization
+  - Handles OAuth login flow
+  - Provides user state and loading indicators
+  - TypeScript support for global `window.DiscordSDK`
+- **Frontend Env**: `VITE_DISCORD_CLIENT_ID` for OAuth flow
 
-## Game Mechanics
-1. **Knower Assignment:** One random player knows what broke each round
-2. **Clue Phase:** Non-knower players give clues (can be fake)
-3. **WTF Twist:** Sometimes nothing breaks - adds deception layer
-4. **Voting Phase:** Players vote on who they think is the knower
-5. **Results Phase:** Scoring for successful deception/detection
+### Phase 3: Voice Channel Context Detection ✅
+- **VoiceContext** (`client/src/contexts/VoiceContext.tsx`):
+  - Tracks current user voice channel context
+  - `setVoiceContext()`: Sets active voice channel
+  - `clearVoiceContext()`: Cleans up on disconnect
+  - Integrated with WebSocket for server awareness
+- **WebSocket Support**: `voice_context` message type for channel updates
 
-## Tech Stack
-- **Frontend:** React 18 + TypeScript + Tailwind CSS
-- **Backend:** Express.js + WebSocket (ws)
-- **Database:** PostgreSQL + Drizzle ORM + Zod
-- **Routing:** Wouter
-- **UI:** shadcn/ui components (custom themed)
-- **Animations:** CSS keyframes + Tailwind animations
-- **Assets:** Logo.png + Icon.png (professional branding)
+### Phase 4: Real-time Multiplayer Sync ✅
+- **WebSocket Enhancements**:
+  - `roomConnections`: Map tracking active connections per room
+  - `userVoiceChannels`: Map for voice channel detection
+  - `broadcast()`: Sends events to all players in a room
+- **useWebSocketSync Hook** (`client/src/hooks/useWebSocketSync.ts`):
+  - `send()`: Sends raw WebSocket messages
+  - `sendGameAction()`: Broadcasts game events to room
+  - `sendVoiceContext()`: Notifies server of voice channel
+  - Auto-connect/disconnect lifecycle
+- **Message Types**:
+  - `join`: Connect to room
+  - `voice_context`: Voice channel updates
+  - `game_action`: Game state synchronization
 
-## Project Structure
+## Architecture
+
+### Backend Stack
+- **Framework**: Express.js with TypeScript
+- **Database**: PostgreSQL + Drizzle ORM
+- **Real-time**: WebSocket (ws library)
+- **Auth**: Discord OAuth2
+- **HTTP Client**: axios
+
+### Frontend Stack
+- **Framework**: React with TypeScript
+- **Build**: Vite with React plugin
+- **Routing**: wouter
+- **State**: React Context, Zustand, TanStack Query
+- **UI**: shadcn/ui components
+- **Styling**: Tailwind CSS
+
+### Database Schema
+- **users**: Discord authentication
+- **rooms**: Game lobbies
+- **players**: Player instances in rooms
+- **gameItems**: Objects that can break
+- **clues**: Player hints during rounds
+- **votes**: Accusation votes
+
+## File Structure
 ```
-/client
-  /src
-    /components
-      - SpaceBackground.tsx (Animated starfield)
-    /pages
-      - JoinLobby.tsx (Create/Join game)
-      - GameRoom.tsx (Main game interface)
-/server
-  - index.ts (Express server)
-  - routes.ts (API routes)
-  - storage.ts (Database interface)
-  - db.ts (Drizzle setup)
-/shared
-  - schema.ts (Drizzle + Zod schemas)
+src/
+├── server/
+│   ├── index.ts              # Express server setup
+│   ├── routes.ts             # API & WebSocket handlers (Discord OAuth + real-time sync)
+│   ├── storage.ts            # Database operations
+│   ├── db.ts                 # Drizzle connection
+│   └── vite.ts               # Vite setup for dev
+├── client/
+│   ├── src/
+│   │   ├── App.tsx           # Root with Discord + Voice providers
+│   │   ├── contexts/
+│   │   │   ├── DiscordContext.tsx      # OAuth2 & SDK
+│   │   │   └── VoiceContext.tsx        # Voice channel tracking
+│   │   ├── hooks/
+│   │   │   └── useWebSocketSync.ts     # Real-time multiplayer
+│   │   ├── pages/
+│   │   │   ├── JoinLobby.tsx
+│   │   │   └── GameRoom.tsx
+│   │   └── components/
+├── shared/
+│   └── schema.ts             # Zod + Drizzle types
+└── dist/
+    └── public/               # Built frontend assets
 ```
 
-## Database Tables
-- `rooms` - Game sessions (code, status, round tracking)
-- `players` - Player data (username, score, host/bot flags)
-- `game_items` - Breakable items
-- `clues` - Player clues (real/fake tracked)
-- `votes` - Voting data per round
+## Development Workflow
 
-## Design System
-- **Primary Color:** Purple (#9333EA)
-- **Background:** Dark space gradient with animated stars
-- **Cards:** Glass-morphism (backdrop-blur-sm + semi-transparent)
-- **Text Hierarchy:** White → Slate-300 → Slate-400
-- **Accent:** Purple for actions, Blue for bot labels
+### Prerequisites
+1. Discord Developer Application with OAuth2 enabled
+2. PostgreSQL database (managed by Replit)
+3. Node.js 20+ (configured)
 
-## Features
-✨ **Animated Space Background**
-- Twinkling stars with random durations
-- Animated nebula glows (purple + blue)
-- Professional cosmic atmosphere
-
-🤖 **Bot Players**
-- Host can add up to 8 players total
-- Bots labeled clearly in player list
-- Support full game participation
-
-🎮 **Game Phases**
-- **Lobby:** Setup phase with player joining
-- **Playing:** Main game round with clue system
-- **Voting:** Accusation phase
-- **Results:** Score and reveal phase
-
-📱 **Responsive UI**
-- Mobile-first design
-- Sidebar for desktop (col-span-3 main, col-span-1 sidebar)
-- Full-width mobile layout
-- Touch-friendly buttons
-
-## Running the Project
+### Environment Setup
 ```bash
-npm run dev  # Starts on port 5000
+# Secrets (in Replit)
+DISCORD_CLIENT_ID=your_app_id
+DISCORD_CLIENT_SECRET=your_app_secret
+
+# Environment Variables
+VITE_DISCORD_CLIENT_ID=your_app_id (for frontend OAuth link)
 ```
 
-## API Endpoints
-- `POST /api/rooms/create` - Create new game room
-- `POST /api/rooms/join` - Join existing room
-- `GET /api/rooms/:code` - Get room details with players
+### Running Development Server
+```bash
+npm run dev        # Starts on port 5000
+npm run build      # TypeScript + bundling
+npm run check      # Type checking
+npm run db:push    # Sync database schema
+```
 
-## Next Steps (Future Enhancement)
-1. Implement WebSocket game flow orchestration
-2. Add real-time clue broadcasting
-3. Implement voting calculation and scoring
-4. Add sound effects for professional feel
-5. Implement 3-round game progression
-6. Add leaderboards and statistics
-7. Implement proper role assignment (knower/others)
+## Key Features Implemented
 
-## Design Notes
-- Glass-morphism aesthetic with backdrop blur
-- Professional dark theme inspired by gaming platforms
-- Smooth animations and transitions
-- Consistent spacing and typography
-- Color-coded roles (purple=host, blue=bot)
-- High contrast for accessibility
+✅ **Discord OAuth2 Authentication**
+- Authorization code flow
+- Secure token storage
+- User profile sync
 
-## User Preferences Documented
-- Professional appearance (not cheap)
-- Dark modern theme with purple accents
-- Responsive mobile + desktop
-- Clear visual hierarchy
-- Integrated custom assets (logo + icon)
+✅ **Activity SDK Integration**
+- SDK initialization hooks
+- Context management
+- Ready state tracking
 
----
-**Last Updated:** December 24, 2025
-**Status:** Ready for gameplay implementation
+✅ **Voice Channel Detection**
+- WebSocket voice context messages
+- Per-user channel tracking
+- Context cleanup
+
+✅ **Real-time Multiplayer**
+- WebSocket broadcast to rooms
+- Game action synchronization
+- Player presence tracking
+- Voice context awareness
+
+## Next Steps for User
+
+1. **Complete Discord App Setup**:
+   - Set Redirect URI: `https://{your-replit-domain}/auth/discord/callback`
+   - Enable necessary OAuth2 scopes (identify, email, rpc)
+
+2. **Test OAuth Flow**:
+   - Login button triggers Discord auth
+   - Callback creates/updates user
+   - Token stored for API access
+
+3. **Extend Voice Integration**:
+   - Implement Discord Activity SDK full initialization
+   - Add voice state updates
+   - Connect to actual voice channels
+
+4. **Optimize Real-time Sync**:
+   - Add message queuing for reliability
+   - Implement reconnection logic
+   - Add latency compensation
+
+## Deployment
+
+Configuration is set in `replit.ts`:
+- **Build**: `npm run build`
+- **Run**: `node ./dist/index.cjs`
+- **Port**: 5000 (auto-exposed)
+
+## Security Notes
+- Discord tokens stored in database with httpOnly cookies
+- OAuth code exchange happens server-side
+- All secrets managed via Replit Secrets
+- WebSocket connections tracked per room
+
+## Tech Decisions
+- **WebSocket over HTTP polling**: Lower latency for multiplayer
+- **Voice channel detection at WebSocket level**: Tracks Discord context automatically
+- **React Context for state**: Lightweight, no additional dependencies
+- **Drizzle ORM**: Type-safe database layer with migrations
