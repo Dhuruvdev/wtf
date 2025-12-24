@@ -10,36 +10,51 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // WebSocket Setup
+  // WebSocket Setup - Track room membership
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  const roomConnections = new Map<number, Set<WebSocket>>();
 
   wss.on('connection', (ws) => {
     console.log('Client connected');
+    let currentRoomId: number | null = null;
 
     ws.on('message', async (message) => {
       try {
         const data = JSON.parse(message.toString());
-        // Handle incoming messages if needed, though mostly driven by REST for lobby
-        // and WS for game state updates
+        if (data.type === 'join' && data.roomCode) {
+          const room = await storage.getRoomByCode(data.roomCode);
+          if (room) {
+            currentRoomId = room.id;
+            if (!roomConnections.has(room.id)) {
+              roomConnections.set(room.id, new Set());
+            }
+            roomConnections.get(room.id)?.add(ws);
+            console.log(`Client joined room ${room.id}`);
+          }
+        }
       } catch (err) {
         console.error('Failed to parse message', err);
       }
     });
 
-    ws.on('close', async () => {
-      // Handle disconnection - remove player, notify room
-      // In a real app we might want a grace period for reconnection
+    ws.on('close', () => {
+      if (currentRoomId && roomConnections.has(currentRoomId)) {
+        roomConnections.get(currentRoomId)?.delete(ws);
+      }
+      console.log('Client disconnected');
     });
   });
 
   function broadcast(roomId: number, type: string, payload: any) {
-    // In a real implementation, we'd map roomIds to connected websockets
-    // For this MVP, simpler broadcast or room tracking is needed
-    wss.clients.forEach((client) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify({ type, payload }));
-      }
-    });
+    const connections = roomConnections.get(roomId);
+    if (connections) {
+      const message = JSON.stringify({ type, payload });
+      connections.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(message);
+        }
+      });
+    }
   }
 
   // API Routes
@@ -122,6 +137,8 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Room not found" });
       }
 
+      console.log(`Starting game for room ${roomId}`);
+
       // Update room status to playing
       await storage.updateRoomStatus(roomId, 'playing');
       
@@ -129,14 +146,17 @@ export async function registerRoutes(
       broadcast(roomId, WS_EVENTS.START_GAME, { roomId });
       
       // Schedule microgame rotation
-      const games = ['voice-act', 'canvas-draw', 'emoji-relay', 'bluff-vote'];
+      const games: Array<'voice-act' | 'canvas-draw' | 'emoji-relay' | 'bluff-vote'> = [
+        'voice-act', 'canvas-draw', 'emoji-relay', 'bluff-vote'
+      ];
       let gameIndex = 0;
       
       const scheduleNextGame = () => {
         const game = games[gameIndex % games.length];
         const delay = gameIndex === 0 ? 2000 : 8000; // Initial delay, then 8s per game
         
-        setTimeout(() => {
+        const timeoutId = setTimeout(() => {
+          console.log(`Broadcasting PHASE_CHANGE for game: ${game}`);
           broadcast(roomId, WS_EVENTS.PHASE_CHANGE, {
             microgame: game,
             phase: 'playing'
@@ -145,6 +165,8 @@ export async function registerRoutes(
           gameIndex++;
           if (gameIndex < 8) scheduleNextGame(); // 8 rounds total
         }, delay);
+
+        console.log(`Scheduled ${game} in ${delay}ms`);
       };
       
       scheduleNextGame();

@@ -32,6 +32,7 @@ export default function GameRoom() {
     activeMicrogame,
     currentPlayer,
   } = useGameStore();
+  const [gameStartTime, setGameStartTime] = useState<number | null>(null);
 
   // Get current player ID from storage
   const currentPlayerId = roomCode ? Number(localStorage.getItem(`player_${roomCode}`)) : undefined;
@@ -43,6 +44,27 @@ export default function GameRoom() {
       if (player) setCurrentPlayer(player);
     }
   }, [room, currentPlayerId, setRoom, setCurrentPlayer]);
+
+  // Game loop - rotate through games every 8 seconds
+  useEffect(() => {
+    if (!gameStartTime || !room || room.status !== 'playing') return;
+
+    const games: Array<'voice-act' | 'canvas-draw' | 'emoji-relay' | 'bluff-vote'> = [
+      'voice-act', 'canvas-draw', 'emoji-relay', 'bluff-vote'
+    ];
+
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - gameStartTime;
+      const gameIndex = Math.floor(elapsed / 8000) % games.length;
+      
+      if (gameIndex < games.length) {
+        setActiveMicrogame(games[gameIndex]);
+        setMicrogamePhase('playing');
+      }
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, [gameStartTime, room, setActiveMicrogame, setMicrogamePhase]);
 
   const isHost = room?.players.find(p => p.id === currentPlayerId)?.isHost;
 
@@ -77,7 +99,17 @@ export default function GameRoom() {
         headers: { 'Content-Type': 'application/json' },
       });
       if (!res.ok) throw new Error('Failed to start game');
+      
+      // Start game loop on client
+      setGameStartTime(Date.now());
+      setActiveMicrogame('voice-act');
+      setMicrogamePhase('playing');
+      
+      // Also send WS message for server tracking
       sendMessage(WS_EVENTS.START_GAME, { roomId: room.id });
+      
+      // Refresh room to get updated status
+      queryClient.invalidateQueries({ queryKey: [api.rooms.get.path, roomCode] });
     } catch (err) {
       toast({
         title: 'Error',
