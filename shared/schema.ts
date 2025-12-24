@@ -5,6 +5,18 @@ import { z } from "zod";
 
 // === TABLE DEFINITIONS ===
 
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  discordId: text("discord_id").notNull().unique(),
+  discordUsername: text("discord_username").notNull(),
+  discordDiscriminator: text("discord_discriminator"),
+  discordAvatar: text("discord_avatar"),
+  discordEmail: text("discord_email"),
+  discordToken: text("discord_token").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const rooms = pgTable("rooms", {
   id: serial("id").primaryKey(),
   code: text("code").notNull().unique(),
@@ -92,6 +104,21 @@ export const votesRelations = relations(votes, ({ one }) => ({
   accused: one(players, {
     fields: [votes.accusedId],
     references: [players.id],
+  }),
+}));
+
+export const usersRelations = relations(users, ({ many }) => ({
+  rooms: many(rooms),
+}));
+
+export const roomsRelationsWithUser = relations(rooms, ({ many, one }) => ({
+  players: many(players),
+  items: many(gameItems),
+  clues: many(clues),
+  votes: many(votes),
+  host: one(users, {
+    fields: [rooms.hostId],
+    references: [users.id],
   }),
 }));
 
