@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DiscordProvider } from "@/contexts/DiscordContext";
 import { VoiceContextProvider } from "@/contexts/VoiceContext";
+import { useDiscordSdk } from "@/hooks/use-discord-sdk";
 import JoinLobby from "@/pages/JoinLobby";
 import GameRoom from "@/pages/GameRoom";
 import NotFound from "@/pages/not-found";
@@ -19,15 +20,22 @@ function Router() {
   );
 }
 
+function AppContent() {
+  useDiscordSdk();
+  return (
+    <TooltipProvider>
+      <Router />
+      <Toaster />
+    </TooltipProvider>
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <DiscordProvider>
         <VoiceContextProvider>
-          <TooltipProvider>
-            <Router />
-            <Toaster />
-          </TooltipProvider>
+          <AppContent />
         </VoiceContextProvider>
       </DiscordProvider>
     </QueryClientProvider>

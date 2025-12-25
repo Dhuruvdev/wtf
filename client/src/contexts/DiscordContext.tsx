@@ -12,6 +12,7 @@ interface DiscordContextType {
   isLoading: boolean;
   isInitialized: boolean;
   initializeSDK: () => Promise<void>;
+  authenticate: () => Promise<any>;
   login: () => void;
   logout: () => void;
 }
@@ -21,6 +22,7 @@ declare global {
     DiscordSDK?: {
       ready: () => Promise<void>;
     };
+    discordSdk?: any;
   }
 }
 
@@ -66,6 +68,19 @@ export function DiscordProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('discord_token');
   };
 
+  const authenticate = async () => {
+    if (!window.discordSdk) return null;
+    try {
+      const { code } = await window.discordSdk.commands.authenticate({
+        scope: ["identify", "guilds", "rpc.voice.read"],
+      });
+      return code;
+    } catch (error) {
+      console.error("Discord auth failed:", error);
+      return null;
+    }
+  };
+
   useEffect(() => {
     const initSDK = async () => {
       await initializeSDK();
@@ -74,7 +89,7 @@ export function DiscordProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <DiscordContext.Provider value={{ user, isLoading, isInitialized, initializeSDK, login, logout }}>
+    <DiscordContext.Provider value={{ user, isLoading, isInitialized, initializeSDK, authenticate, login, logout }}>
       {children}
     </DiscordContext.Provider>
   );
