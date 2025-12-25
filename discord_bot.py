@@ -3,6 +3,7 @@ from discord.ext import commands
 import aiohttp
 import os
 from dotenv import load_dotenv
+import random
 
 load_dotenv()
 
@@ -22,6 +23,23 @@ GAME_WEB_URL = os.getenv("GAME_WEB_URL", "https://your-replit-domain.replit.dev"
 # Store active games per guild
 active_games = {}
 
+# Roast generator with AI bots
+def generate_bot_roast(target_username: str) -> str:
+    """Generate a brutal roast for AI bots"""
+    roasts = [
+        f"I'd roast you harder but your internet connection already did that, {target_username}",
+        f"Your roasts are like your gameplay - absolutely non-existent",
+        f"{target_username}? More like {target_username}-TOTALLY-DESTROYED 💀",
+        "That roast was as weak as wet bread, honestly pathetic",
+        "I've seen better comebacks from a 1990s dial-up modem",
+        f"{target_username} walked so you could run... directly into a WALL",
+        "Your jokes are like your ping - completely lagging behind",
+        f"I'd explain this roast to you but you'd still not understand, {target_username}",
+        "That was so bad, even your ISP is roasting you right now",
+        f"{target_username}: Professional Roast Punching Bag since forever"
+    ]
+    return random.choice(roasts)
+
 
 @bot.event
 async def on_ready():
@@ -32,8 +50,8 @@ async def on_ready():
 
 
 @bot.tree.command(name="create", description="Create a new WTF Land room")
-@discord.app_commands.describe(max_players="Maximum players (2-8, default 4)")
-async def create_room(interaction: discord.Interaction, max_players: int = 4):
+@discord.app_commands.describe(max_players="Maximum players (2-8, default 4)", mode="Game mode: roast or land")
+async def create_room(interaction: discord.Interaction, max_players: int = 4, mode: str = "roast"):
     """Create a new game room"""
     await interaction.response.defer()
     
@@ -41,12 +59,17 @@ async def create_room(interaction: discord.Interaction, max_players: int = 4):
         await interaction.followup.send("❌ Max players must be between 2 and 8")
         return
     
+    if mode.lower() not in ["roast", "land"]:
+        await interaction.followup.send("❌ Mode must be 'roast' or 'land'")
+        return
+    
     try:
         async with aiohttp.ClientSession() as session:
             payload = {
                 "username": interaction.user.name,
                 "avatarUrl": interaction.user.avatar.url if interaction.user.avatar else None,
-                "maxPlayers": max_players
+                "maxPlayers": max_players,
+                "gameMode": mode.lower()
             }
             
             async with session.post(f"{GAME_API_URL}/api/rooms/create", json=payload) as resp:
@@ -63,16 +86,19 @@ async def create_room(interaction: discord.Interaction, max_players: int = 4):
                     "code": room_code,
                     "id": room_id,
                     "creator": interaction.user.id,
-                    "players": [interaction.user.name]
+                    "players": [interaction.user.name],
+                    "mode": mode.lower()
                 }
                 
                 # Create invite embed
+                mode_emoji = "🔥" if mode.lower() == "roast" else "🌍"
                 embed = discord.Embed(
-                    title="🎮 WTF LAND ROOM CREATED",
-                    description=f"A new territory-claiming game is ready!",
-                    color=discord.Color.purple()
+                    title=f"{mode_emoji} WTF LAND ROOM CREATED",
+                    description=f"A new {mode.lower()} battle game is ready!",
+                    color=discord.Color.red() if mode.lower() == "roast" else discord.Color.cyan()
                 )
                 embed.add_field(name="Room Code", value=f"```{room_code}```", inline=False)
+                embed.add_field(name="Game Mode", value=f"{mode.upper()}", inline=True)
                 embed.add_field(name="Max Players", value=f"{max_players} players", inline=True)
                 embed.add_field(name="Created by", value=interaction.user.mention, inline=True)
                 embed.add_field(
@@ -80,7 +106,7 @@ async def create_room(interaction: discord.Interaction, max_players: int = 4):
                     value=f"[Click here to join]({GAME_WEB_URL}/room/{room_code})",
                     inline=False
                 )
-                embed.set_footer(text="Use /join to add players or share the link above")
+                embed.set_footer(text="Bots with Grok AI will automatically join!" if mode.lower() == "roast" else "")
                 
                 await interaction.followup.send(embed=embed)
                 
@@ -138,17 +164,29 @@ async def game_info(interaction: discord.Interaction):
     """Show game information"""
     embed = discord.Embed(
         title="🎮 WTF LAND @ thats.wtf",
-        description="Territory-Claiming Multiplayer Game",
+        description="Roast Battle & Territory-Claiming Games",
         color=discord.Color.purple()
     )
     
     embed.add_field(
-        name="📋 How to Play",
+        name="🔥 ROAST BATTLE",
         value="```\n"
-              "🕹️  WASD/Arrow Keys to move\n"
-              "🌍 Close loops with your trail to claim territory\n"
-              "💥 Hit own/opponent trail = eliminated\n"
-              "🏆 Highest territory score in 5 minutes wins\n"
+              "8 players → 2 compete with roasts\n"
+              "6 vote for the better roast\n"
+              "Losers eliminated each round\n"
+              "Winner crowned after 3 rounds\n"
+              "AI Bots powered by Grok!\n"
+              "```",
+        inline=False
+    )
+    
+    embed.add_field(
+        name="🌍 LAND.IO",
+        value="```\n"
+              "WASD/Arrow Keys to move\n"
+              "Close loops to claim territory\n"
+              "Hit trails = eliminated\n"
+              "Highest score in 5 minutes wins\n"
               "```",
         inline=False
     )

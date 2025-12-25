@@ -163,13 +163,17 @@ export class RoastBattleScene extends Phaser.Scene {
   }
 
   private renderGame() {
+    if (!this.graphics) return;
+    
     this.graphics.clear();
 
     // Background
     this.graphics.fillStyle(0x0a0014);
     this.graphics.fillRect(0, 0, 800, 600);
 
-    const canvas = this.game.canvas;
+    const canvas = this.game?.canvas;
+    if (!canvas) return;
+    
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
