@@ -15,9 +15,11 @@ import {
   ShieldAlert,
   Hash,
   Play,
-  UserPlus
+  UserPlus,
+  Volume2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useSoundEffect } from '@/hooks/useSoundEffect';
 
 interface Player {
   _id: string;
@@ -43,6 +45,7 @@ export function RoastBattleGame({ playerId, players, roomCode, onGameAction, onG
   const [messages, setMessages] = useState<any[]>([]);
   const [spectatorCount] = useState(Math.floor(Math.random() * 50) + 10);
   const [isSpectateMode, setIsSpectateMode] = useState(false);
+  const { playRoastSubmitted, playMemeSound } = useSoundEffect();
 
   // Derived state
   const activePlayers = players.slice(0, 2);
@@ -57,12 +60,18 @@ export function RoastBattleGame({ playerId, players, roomCode, onGameAction, onG
 
   const handleSend = () => {
     if (!roastText.trim()) return;
+    playRoastSubmitted();
+    if (roastText.length > 100) playMemeSound('wow');
+    
     const newMessage = {
       id: Date.now().toString(),
       senderId: playerId,
       text: roastText,
       quality: Math.random() * 100
     };
+    if (newMessage.quality > 85) {
+      setTimeout(() => playMemeSound('airhorn'), 500);
+    }
     setMessages([...messages, newMessage]);
     setRoastText('');
     onGameAction({ type: 'roast_submit', payload: newMessage });

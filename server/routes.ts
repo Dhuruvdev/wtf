@@ -4,6 +4,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { WS_EVENTS } from "@shared/schema";
 import axios from "axios";
+import { generateAIRoast } from "./grok";
 
 // Discord OAuth Types
 interface DiscordTokenResponse {
@@ -112,6 +113,18 @@ export async function registerRoutes(
         // Real-time multiplayer sync
         if (data.type === 'game_action' && currentRoomId) {
           broadcast(currentRoomId, data.eventType, data.payload);
+
+          // Handle Bot Turn logic
+          if (data.eventType === 'turn_start' && data.payload.isBot) {
+            const botRoast = await generateAIRoast(data.payload.topic, data.payload.targetUsername);
+            setTimeout(() => {
+              broadcast(currentRoomId!, 'roast_submit', {
+                senderId: data.payload.playerId,
+                text: botRoast,
+                quality: 80 + Math.random() * 20
+              });
+            }, 2000 + Math.random() * 3000);
+          }
         }
       } catch (err) {
         console.error('Failed to parse message', err);

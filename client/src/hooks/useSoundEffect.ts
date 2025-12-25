@@ -144,29 +144,53 @@ export function useSoundEffect() {
   }, []);
 
   const playElimination = useCallback(() => {
+    // ... existing code ...
+  }, []);
+
+  const playMemeSound = useCallback((type: 'airhorn' | 'wow' | 'emotional' | 'bonk') => {
     try {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       const now = audioContext.currentTime;
-      
-      const osc = audioContext.createOscillator();
-      const gain = audioContext.createGain();
-      
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(300, now);
-      osc.frequency.exponentialRampToValueAtTime(80, now + 0.4);
-      
-      gain.gain.setValueAtTime(0.25, now);
-      gain.gain.exponentialRampToValueAtTime(0, now + 0.4);
-      
-      osc.connect(gain);
-      gain.connect(audioContext.destination);
-      
-      osc.start(now);
-      osc.stop(now + 0.4);
-    } catch (e) {
-      // Silently fail
-    }
+
+      if (type === 'airhorn') {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.exponentialRampToValueAtTime(880, now + 0.1);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.start(now);
+        osc.stop(now + 0.5);
+      } else if (type === 'wow') {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.exponentialRampToValueAtTime(600, now + 0.2);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.start(now);
+        osc.stop(now + 0.3);
+      } else if (type === 'bonk') {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.exponentialRampToValueAtTime(50, now + 0.1);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.start(now);
+        osc.stop(now + 0.1);
+      }
+    } catch (e) {}
   }, []);
 
-  return { playClick, playSuccess, playError, playRoastSubmitted, playVoteSound, playElimination };
+  return { playClick, playSuccess, playError, playRoastSubmitted, playVoteSound, playElimination, playMemeSound };
 }
