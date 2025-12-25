@@ -38,6 +38,10 @@ export class LandIOScene extends Phaser.Scene {
   private onGameAction: ((action: any) => void) | null = null;
   private localPlayerId: number = 0;
   private territoryCounts: Map<number, number> = new Map();
+  private targetX: number = 0;
+  private targetY: number = 0;
+  private isTouchActive = false;
+  private moveSpeed = 3;
 
   constructor() {
     super('LandIO');
@@ -63,17 +67,32 @@ export class LandIOScene extends Phaser.Scene {
       this.handleInput(event);
     });
 
-    // Mouse/Touch controls
-    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-      this.handlePointerMove(pointer);
+    // Mouse/Touch controls - smooth movement
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      this.isTouchActive = true;
+      this.targetX = pointer.x;
+      this.targetY = pointer.y;
     });
 
-    // Game loop
+    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      if (this.isTouchActive) {
+        this.targetX = pointer.x;
+        this.targetY = pointer.y;
+      }
+    });
+
+    this.input.on('pointerup', () => {
+      this.isTouchActive = false;
+      this.finalizeTrail();
+    });
+
+    // Game loop with smooth movement
     this.time.addEvent({
-      delay: 100,
+      delay: 16, // ~60 FPS
       callback: () => {
         if (this.gameState.gameActive) {
-          this.gameState.gameTime -= 0.1;
+          this.smoothMovePlayer();
+          this.gameState.gameTime -= 0.016;
           if (this.gameState.gameTime <= 0) {
             this.gameState.gameActive = false;
           }
@@ -119,20 +138,23 @@ export class LandIOScene extends Phaser.Scene {
     }
   }
 
-  private handlePointerMove(pointer: Phaser.Input.Pointer) {
+  private smoothMovePlayer() {
     const player = this.gameState.players.get(this.localPlayerId);
     if (!player || !this.gameState.gameActive) return;
 
-    const dx = pointer.x - player.x;
-    const dy = pointer.y - player.y;
+    const dx = this.targetX - player.x;
+    const dy = this.targetY - player.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
-    
-    if (distance > 2) {
-      const speed = 2;
-      player.x += (dx / distance) * speed;
-      player.y += (dy / distance) * speed;
+
+    if (distance > 1) {
+      // Smooth easing towards target
+      const easing = Math.min(1, this.moveSpeed / distance);
+      player.x += dx * easing;
+      player.y += dy * easing;
+
       player.x = Math.max(0, Math.min(this.worldWidth - 1, player.x));
       player.y = Math.max(0, Math.min(this.worldHeight - 1, player.y));
+
       this.updatePlayerTrail(player);
     }
   }
