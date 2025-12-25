@@ -39,7 +39,7 @@ export function RoastBattleGame({ playerId, players, roomCode, onGameAction, onG
   const [timeLeft, setTimeLeft] = useState(30);
   const [currentTopic, setCurrentTopic] = useState("Your haircut looks like a failed science experiment.");
   const [messages, setMessages] = useState<any[]>([]);
-  const [spectatorCount, setSpectatorCount] = useState(42);
+  const [spectatorCount] = useState(42);
   const [isSpectateMode, setIsSpectateMode] = useState(false);
 
   // Derived state
@@ -56,7 +56,7 @@ export function RoastBattleGame({ playerId, players, roomCode, onGameAction, onG
   const handleSend = () => {
     if (!roastText.trim()) return;
     const newMessage = {
-      id: Date.now(),
+      id: Date.now().toString(),
       senderId: playerId,
       text: roastText,
       quality: Math.random() * 100
@@ -76,25 +76,25 @@ export function RoastBattleGame({ playerId, players, roomCode, onGameAction, onG
             className={`w-16 h-16 rounded-full border-4 ${side === 'left' ? 'border-primary' : 'border-secondary'} p-1`}
           >
             <div className="w-full h-full rounded-full bg-muted overflow-hidden flex items-center justify-center">
-              {player.avatarUrl ? <img src={player.avatarUrl} alt="" /> : <Users className="w-8 h-8 opacity-50" />}
+              {player.avatarUrl ? <img src={player.avatarUrl} alt="" className="w-full h-full object-cover" /> : <Users className="w-8 h-8 opacity-50" />}
             </div>
           </motion.div>
           <Badge className="absolute -bottom-1 -right-1 bg-accent text-[8px] px-1 font-display">
-            LVL.{Math.floor(player.score / 100) + 1}
+            LVL.{Math.floor((player.score || 0) / 100) + 1}
           </Badge>
         </div>
         <div className={side === 'right' ? 'text-right' : 'text-left'}>
           <h3 className="text-xs font-display mb-1 truncate max-w-[100px]">{player.username}</h3>
           <div className="flex items-center gap-1">
             <Trophy className="w-3 h-3 text-yellow-500" />
-            <span className="text-xs font-bold text-yellow-500">{player.score}</span>
+            <span className="text-xs font-bold text-yellow-500">{player.score || 0}</span>
           </div>
         </div>
       </div>
       <div className="w-full h-3 bg-white/5 rounded-full overflow-hidden border border-white/10 p-[1px]">
         <motion.div 
           initial={{ width: "100%" }}
-          animate={{ width: `${Math.max(20, 100 - (player.score % 100))}%` }}
+          animate={{ width: `${Math.max(20, 100 - ((player.score || 0) % 100))}%` }}
           className={`h-full rounded-full ${side === 'left' ? 'bg-primary shadow-[0_0_8px_#a855f7]' : 'bg-secondary shadow-[0_0_8px_#06b6d4]'}`}
         />
       </div>
@@ -103,7 +103,6 @@ export function RoastBattleGame({ playerId, players, roomCode, onGameAction, onG
 
   return (
     <div className="flex flex-col gap-4 w-full h-full max-h-[800px] p-4 bg-background/50 rounded-2xl border border-white/5 scanline relative">
-      {/* Top Bar */}
       <div className="flex items-center justify-between px-2">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
@@ -112,7 +111,7 @@ export function RoastBattleGame({ playerId, players, roomCode, onGameAction, onG
           </div>
           <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
             {currentTopic}
-            <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-primary">
+            <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-primary" onClick={() => setCurrentTopic("New random topic...")}>
               <RotateCcw className="w-3 h-3" />
             </Button>
           </h2>
@@ -133,9 +132,7 @@ export function RoastBattleGame({ playerId, players, roomCode, onGameAction, onG
         </div>
       </div>
 
-      {/* Main Arena */}
       <div className="flex-1 cyber-panel neon-border relative flex flex-col p-6 min-h-[400px]">
-        {/* Battle Layout */}
         <div className="flex justify-between items-start mb-8 gap-4">
           <PlayerHUD player={activePlayers[0] || players[0]} side="left" />
           <div className="flex flex-col items-center gap-2 pt-4">
@@ -148,7 +145,6 @@ export function RoastBattleGame({ playerId, players, roomCode, onGameAction, onG
           <PlayerHUD player={activePlayers[1] || players[1]} side="right" />
         </div>
 
-        {/* Chat Bubbles */}
         <div className="flex-1 overflow-y-auto space-y-4 px-2 py-4 no-scrollbar">
           <AnimatePresence>
             {messages.map((msg) => (
@@ -165,13 +161,11 @@ export function RoastBattleGame({ playerId, players, roomCode, onGameAction, onG
                 } border-2 backdrop-blur-md`}>
                   <p className="text-sm font-medium leading-relaxed">{msg.text}</p>
                   
-                  {/* Heat Meter for this roast */}
                   <div className="absolute -bottom-2 right-4 flex items-center gap-1 bg-black/80 px-2 py-0.5 rounded-full border border-white/20">
                     <Flame className={`w-2.5 h-2.5 ${msg.quality > 80 ? 'text-red-500' : 'text-orange-400'}`} />
                     <span className="text-[8px] font-bold">{Math.round(msg.quality)}%</span>
                   </div>
                   
-                  {/* Glitch effect on high quality */}
                   {msg.quality > 90 && (
                     <div className="absolute inset-0 bg-primary/10 animate-glitch pointer-events-none rounded-2xl" />
                   )}
@@ -181,7 +175,6 @@ export function RoastBattleGame({ playerId, players, roomCode, onGameAction, onG
           </AnimatePresence>
         </div>
 
-        {/* Action Overlay */}
         {phase === 'voting' && (
           <motion.div 
             initial={{ opacity: 0 }}
@@ -194,7 +187,7 @@ export function RoastBattleGame({ playerId, players, roomCode, onGameAction, onG
                   key={idx}
                   variant="outline"
                   className="h-32 w-32 flex flex-col gap-2 bg-card/80 hover:bg-primary/20 border-2 hover:border-primary transition-all group"
-                  onClick={() => onGameAction({ type: 'vote', payload: activePlayers[idx]._id })}
+                  onClick={() => onGameAction({ type: 'vote', payload: activePlayers[idx]?._id })}
                 >
                   <Flame className="w-8 h-8 text-primary group-hover:scale-125 transition-transform" />
                   <span className="font-display text-[10px]">{activePlayers[idx]?.username}</span>
@@ -205,9 +198,7 @@ export function RoastBattleGame({ playerId, players, roomCode, onGameAction, onG
         )}
       </div>
 
-      {/* Input Area */}
       <div className="cyber-panel p-4 flex flex-col gap-3">
-        {/* Turn Timer Bar */}
         <div className="flex items-center gap-3">
           <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
             <motion.div 
@@ -245,7 +236,6 @@ export function RoastBattleGame({ playerId, players, roomCode, onGameAction, onG
           </Button>
         </div>
 
-        {/* Footer Actions */}
         <div className="flex justify-between items-center px-1">
           <div className="flex gap-4">
             <Button variant="ghost" className="h-6 px-2 text-[8px] font-display text-white/30 hover:text-destructive">
