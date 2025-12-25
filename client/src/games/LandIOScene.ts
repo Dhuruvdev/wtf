@@ -312,24 +312,33 @@ export class LandIOScene extends Phaser.Scene {
     this.graphics.clear();
     
     // Draw background
-    this.graphics.fillStyle(0xfafafa);
+    this.graphics.fillStyle(0x0a0014);
     this.graphics.fillRect(0, 0, this.worldWidth, this.worldHeight);
 
     // Draw territories
     this.gameState.players.forEach((player) => {
       if (!player.isAlive) return;
       
-      this.graphics.fillStyle(player.color, 0.3);
+      this.graphics.fillStyle(player.color, 0.25);
       player.territory.forEach(point => {
         this.graphics.fillRect(point.x, point.y, 1, 1);
       });
     });
 
-    // Draw trails
+    // Draw territory borders
     this.gameState.players.forEach((player) => {
-      if (!player.isAlive || player.trails.length === 0) return;
+      if (!player.isAlive || player.territory.length === 0) return;
       
-      this.graphics.lineStyle(2, player.color, 1);
+      this.graphics.lineStyle(1, player.color, 0.6);
+      const bounds = this.getTerritoryBounds(player.territory);
+      this.graphics.strokeRect(bounds.minX, bounds.minY, bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
+    });
+
+    // Draw trails (bold)
+    this.gameState.players.forEach((player) => {
+      if (!player.isAlive || player.trails.length < 2) return;
+      
+      this.graphics.lineStyle(3, player.color, 0.9);
       this.graphics.beginPath();
       this.graphics.moveTo(player.trails[0].x, player.trails[0].y);
       
@@ -339,50 +348,84 @@ export class LandIOScene extends Phaser.Scene {
       this.graphics.strokePath();
     });
 
-    // Draw players
+    // Draw players (larger, more visible)
     this.gameState.players.forEach((player) => {
       if (!player.isAlive) return;
       
-      this.graphics.fillStyle(player.color);
-      this.graphics.fillCircle(player.x, player.y, 4);
+      // Player circle
+      this.graphics.fillStyle(player.color, 1);
+      this.graphics.fillCircle(player.x, player.y, 5);
       
-      // Draw player border
-      this.graphics.lineStyle(2, 0xffffff);
-      const circle = new Phaser.Geom.Circle(player.x, player.y, 4);
-      this.graphics.strokeCircleShape(circle);
+      // Player border
+      this.graphics.lineStyle(2, 0xffffff, 1);
+      this.graphics.strokeCircle(player.x, player.y, 5);
     });
 
-    // Draw game info
-    this.graphics.fillStyle(0x000000);
-    this.graphics.fillRect(0, 0, 200, 80);
-    this.graphics.fillStyle(0xffffff);
-    
-    const timeSeconds = Math.max(0, Math.floor(this.gameTime));
-    const mins = Math.floor(timeSeconds / 60);
-    const secs = timeSeconds % 60;
-    
-    this.graphics.fillText(`TIME: ${mins}:${secs.toString().padStart(2, '0')}`, 10, 15);
+    // Draw game HUD in top-left
+    const hud = [
+      `TIME: ${Math.floor(this.gameTime / 60)}:${String(Math.floor(this.gameTime) % 60).padStart(2, '0')}`,
+      `PLAYERS: ${Array.from(this.gameState.players.values()).filter(p => p.isAlive).length}/${this.gameState.players.size}`
+    ];
     
     const localPlayer = this.gameState.players.get(this.localPlayerId);
     if (localPlayer) {
-      this.graphics.fillText(`SCORE: ${localPlayer.score}`, 10, 35);
-      this.graphics.fillText(`TERRITORY: ${this.territoryCounts.get(this.localPlayerId) || 0}`, 10, 55);
+      hud.push(`YOUR SCORE: ${localPlayer.score}`);
+      hud.push(`TERRITORY: ${this.territoryCounts.get(this.localPlayerId) || 0}px`);
     }
 
-    // Draw leaderboard
+    // HUD background
+    this.graphics.fillStyle(0x000000, 0.8);
+    this.graphics.fillRect(5, 5, 180, 20 + hud.length * 12);
+
+    // HUD text using canvas context directly
+    const canvas = this.game.canvas;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 10px monospace';
+      ctx.textBaseline = 'top';
+      hud.forEach((line, idx) => {
+        ctx.fillText(line, 10, 10 + idx * 12);
+      });
+    }
+
+    // Draw leaderboard in top-right
     const sortedPlayers = Array.from(this.gameState.players.values())
       .filter(p => p.isAlive)
       .sort((a, b) => b.score - a.score)
-      .slice(0, 3);
+      .slice(0, 4);
 
-    this.graphics.fillStyle(0x000000);
-    this.graphics.fillRect(this.worldWidth - 200, 0, 200, 100);
-    this.graphics.fillStyle(0xffffff);
-    this.graphics.fillText('TOP PLAYERS', this.worldWidth - 195, 15);
-    
-    sortedPlayers.forEach((player, idx) => {
-      this.graphics.fillText(`${idx + 1}. ${player.score} pts`, this.worldWidth - 195, 35 + idx * 20);
+    if (sortedPlayers.length > 0) {
+      const leaderboardHeight = 25 + sortedPlayers.length * 12;
+      this.graphics.fillStyle(0x000000, 0.8);
+      this.graphics.fillRect(this.worldWidth - 185, 5, 180, leaderboardHeight);
+
+      if (ctx) {
+        ctx.fillStyle = '#a855f7';
+        ctx.font = 'bold 11px monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText('🏆 LEADERBOARD', this.worldWidth - 180, 10);
+        
+        ctx.fillStyle = '#06b6d4';
+        ctx.font = 'bold 9px monospace';
+        sortedPlayers.forEach((player, idx) => {
+          const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉';
+          ctx.fillText(`${medal} ${player.score}pts`, this.worldWidth - 180, 25 + idx * 12);
+        });
+      }
+    }
+  }
+
+  private getTerritoryBounds(territory: Array<{ x: number; y: number }>) {
+    if (territory.length === 0) return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+    let minX = territory[0].x, minY = territory[0].y, maxX = territory[0].x, maxY = territory[0].y;
+    territory.forEach(p => {
+      minX = Math.min(minX, p.x);
+      minY = Math.min(minY, p.y);
+      maxX = Math.max(maxX, p.x);
+      maxY = Math.max(maxY, p.y);
     });
+    return { minX, minY, maxX, maxY };
   }
 
   getGameState() {
