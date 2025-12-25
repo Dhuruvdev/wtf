@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -13,7 +13,9 @@ import {
   RotateCcw, 
   Eye, 
   ShieldAlert,
-  Hash
+  Hash,
+  Play,
+  UserPlus
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -39,7 +41,7 @@ export function RoastBattleGame({ playerId, players, roomCode, onGameAction, onG
   const [timeLeft, setTimeLeft] = useState(30);
   const [currentTopic, setCurrentTopic] = useState("Your haircut looks like a failed science experiment.");
   const [messages, setMessages] = useState<any[]>([]);
-  const [spectatorCount] = useState(42);
+  const [spectatorCount] = useState(Math.floor(Math.random() * 50) + 10);
   const [isSpectateMode, setIsSpectateMode] = useState(false);
 
   // Derived state
@@ -67,107 +69,151 @@ export function RoastBattleGame({ playerId, players, roomCode, onGameAction, onG
   };
 
   const PlayerHUD = ({ player, side }: { player: Player, side: 'left' | 'right' }) => (
-    <div className={`flex flex-col ${side === 'right' ? 'items-end' : 'items-start'} gap-2 w-full max-w-[200px]`}>
+    <div className={`flex flex-col ${side === 'right' ? 'items-end' : 'items-start'} gap-2 w-full max-w-[220px]`}>
       <div className={`flex items-center gap-3 ${side === 'right' ? 'flex-row-reverse' : 'flex-row'}`}>
         <div className="relative">
           <motion.div 
-            animate={{ scale: [1, 1.05, 1], rotate: [0, 5, -5, 0] }}
-            transition={{ duration: 4, repeat: Infinity }}
-            className={`w-16 h-16 rounded-full border-4 ${side === 'left' ? 'border-primary' : 'border-secondary'} p-1`}
+            animate={{ 
+              scale: isMyTurn && player._id === playerId ? [1, 1.05, 1] : 1,
+              boxShadow: isMyTurn && player._id === playerId ? ["0 0 0px #a855f7", "0 0 20px #a855f7", "0 0 0px #a855f7"] : "none"
+            }}
+            transition={{ duration: 2, repeat: Infinity }}
+            className={`w-16 h-16 rounded-full border-4 ${side === 'left' ? 'border-primary shadow-[0_0_10px_#a855f7]' : 'border-secondary shadow-[0_0_10px_#06b6d4]'} p-1 bg-black`}
           >
             <div className="w-full h-full rounded-full bg-muted overflow-hidden flex items-center justify-center">
               {player.avatarUrl ? <img src={player.avatarUrl} alt="" className="w-full h-full object-cover" /> : <Users className="w-8 h-8 opacity-50" />}
             </div>
           </motion.div>
-          <Badge className="absolute -bottom-1 -right-1 bg-accent text-[8px] px-1 font-display">
-            LVL.{Math.floor((player.score || 0) / 100) + 1}
+          <Badge className={`absolute -bottom-1 ${side === 'left' ? '-right-1' : '-left-1'} bg-accent text-[8px] px-1 font-display border-black`}>
+            RANK {Math.floor((player.score || 0) / 100) + 1}
           </Badge>
         </div>
         <div className={side === 'right' ? 'text-right' : 'text-left'}>
-          <h3 className="text-xs font-display mb-1 truncate max-w-[100px]">{player.username}</h3>
-          <div className="flex items-center gap-1">
+          <h3 className="text-[10px] font-display mb-1 truncate max-w-[100px] text-white tracking-tighter">{player.username}</h3>
+          <div className={`flex items-center gap-1 ${side === 'right' ? 'justify-end' : 'justify-start'}`}>
             <Trophy className="w-3 h-3 text-yellow-500" />
             <span className="text-xs font-bold text-yellow-500">{player.score || 0}</span>
           </div>
         </div>
       </div>
-      <div className="w-full h-3 bg-white/5 rounded-full overflow-hidden border border-white/10 p-[1px]">
+      <div className="w-full h-4 bg-black/60 rounded-full overflow-hidden border border-white/10 p-[2px] shadow-inner">
         <motion.div 
-          initial={{ width: "100%" }}
-          animate={{ width: `${Math.max(20, 100 - ((player.score || 0) % 100))}%` }}
-          className={`h-full rounded-full ${side === 'left' ? 'bg-primary shadow-[0_0_8px_#a855f7]' : 'bg-secondary shadow-[0_0_8px_#06b6d4]'}`}
+          initial={{ width: "0%" }}
+          animate={{ width: `${Math.max(10, Math.min(100, (player.score % 100) || 75))}%` }}
+          className={`h-full rounded-full transition-all duration-1000 ${side === 'left' ? 'bg-gradient-to-r from-purple-600 to-primary shadow-[0_0_10px_#a855f7]' : 'bg-gradient-to-r from-blue-600 to-secondary shadow-[0_0_10px_#06b6d4]'}`}
         />
       </div>
     </div>
   );
 
   return (
-    <div className="flex flex-col gap-4 w-full h-full max-h-[800px] p-4 bg-background/50 rounded-2xl border border-white/5 scanline relative">
-      <div className="flex items-center justify-between px-2">
+    <div className="flex flex-col gap-4 w-full h-full max-h-[850px] p-4 bg-black/40 backdrop-blur-xl rounded-3xl border border-white/10 scanline relative overflow-hidden">
+      {/* Animated Stage Lighting */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden -z-10 opacity-30">
+        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-purple-900/20 via-transparent to-blue-900/20" />
+        <motion.div 
+          animate={{ 
+            x: ["-10%", "10%", "-10%"],
+            y: ["-10%", "10%", "-10%"],
+          }}
+          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+          className="absolute -inset-[50%] bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent blur-3xl"
+        />
+      </div>
+
+      {/* Top Bar / Topic Header */}
+      <div className="flex items-center justify-between px-4 py-2 bg-black/40 rounded-2xl border border-white/5">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
             <Hash className="w-4 h-4 text-primary" />
-            <span className="text-xs font-display text-primary/80">TOPIC_BATTLE</span>
+            <span className="text-[10px] font-display text-primary/80">CURRENT_ROAST_TOPIC</span>
           </div>
-          <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
+          <h2 className="text-xs md:text-sm font-bold text-white flex items-center gap-3">
+            <Flame className="w-4 h-4 text-orange-500" />
             {currentTopic}
-            <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-primary" onClick={() => setCurrentTopic("New random topic...")}>
-              <RotateCcw className="w-3 h-3" />
+            <Button 
+              size="icon" 
+              variant="ghost" 
+              className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              onClick={() => setCurrentTopic("Think your fashion sense is 'vintage'? It looks more like 'attic fire victim'.")}
+            >
+              <RotateCcw className="w-4 h-4" />
             </Button>
           </h2>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 bg-black/40 px-3 py-1 rounded-full border border-white/10">
-            <Eye className="w-3 h-3 text-cyan-400" />
-            <span className="text-[10px] font-bold text-cyan-400">{spectatorCount}</span>
+        <div className="hidden md:flex items-center gap-4">
+          <div className="flex items-center gap-2 bg-black/60 px-4 py-1.5 rounded-full border border-primary/20 shadow-[0_0_10px_rgba(168,85,247,0.2)]">
+            <Users className="w-3 h-3 text-cyan-400" />
+            <span className="text-[10px] font-display text-cyan-400">SPECTATORS: {spectatorCount}</span>
           </div>
           <Button 
-            variant="ghost" 
+            variant="outline" 
             size="sm" 
             onClick={() => setIsSpectateMode(!isSpectateMode)}
-            className={`text-[10px] h-7 font-display border border-white/10 ${isSpectateMode ? 'bg-accent/20 text-accent' : ''}`}
+            className={`text-[10px] h-8 font-display border-primary/30 hover:bg-primary/20 ${isSpectateMode ? 'bg-primary/30 text-white border-primary shadow-[0_0_10px_#a855f7]' : 'text-primary'}`}
           >
-            {isSpectateMode ? 'SPECTATING' : 'JOINED'}
+            {isSpectateMode ? <Eye className="w-3 h-3 mr-2" /> : <Play className="w-3 h-3 mr-2" />}
+            {isSpectateMode ? 'WATCHING' : 'BATTLE MODE'}
           </Button>
         </div>
       </div>
 
-      <div className="flex-1 cyber-panel neon-border relative flex flex-col p-6 min-h-[400px]">
-        <div className="flex justify-between items-start mb-8 gap-4">
+      {/* Main Arena */}
+      <div className="flex-1 cyber-panel neon-border relative flex flex-col p-6 min-h-[450px] bg-black/60 shadow-2xl">
+        {/* Battle Layout - HUDs */}
+        <div className="flex justify-between items-start mb-12 gap-4">
           <PlayerHUD player={activePlayers[0] || players[0]} side="left" />
-          <div className="flex flex-col items-center gap-2 pt-4">
-            <div className="relative">
-              <Zap className="w-8 h-8 text-yellow-500 animate-pulse" />
-              <div className="absolute inset-0 blur-lg bg-yellow-500/50 -z-10" />
-            </div>
-            <span className="text-[10px] font-display text-white/40">VS</span>
+          <div className="flex flex-col items-center gap-3 pt-4">
+            <motion.div 
+              animate={{ rotate: 360 }}
+              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+              className="relative"
+            >
+              <Zap className="w-10 h-10 text-yellow-500 drop-shadow-[0_0_15px_rgba(234,179,8,0.6)]" />
+              <div className="absolute inset-0 blur-xl bg-yellow-500/40 -z-10" />
+            </motion.div>
+            <Badge variant="outline" className="font-display text-[10px] py-1 px-3 border-white/20 text-white/40">ARENA V1.0</Badge>
           </div>
           <PlayerHUD player={activePlayers[1] || players[1]} side="right" />
         </div>
 
-        <div className="flex-1 overflow-y-auto space-y-4 px-2 py-4 no-scrollbar">
-          <AnimatePresence>
+        {/* Roast Message Area */}
+        <div className="flex-1 overflow-y-auto space-y-6 px-4 py-4 no-scrollbar scroll-smooth">
+          <AnimatePresence mode="popLayout">
             {messages.map((msg) => (
               <motion.div
                 key={msg.id}
-                initial={{ opacity: 0, x: msg.senderId === playerId ? 50 : -50, y: 20 }}
-                animate={{ opacity: 1, x: 0, y: 0 }}
+                initial={{ opacity: 0, scale: 0.8, x: msg.senderId === playerId ? 100 : -100 }}
+                animate={{ opacity: 1, scale: 1, x: 0 }}
+                exit={{ opacity: 0, scale: 0.5 }}
                 className={`flex ${msg.senderId === playerId ? 'justify-end' : 'justify-start'}`}
               >
-                <div className={`max-w-[80%] p-4 rounded-2xl relative group ${
+                <div className={`max-w-[75%] p-5 rounded-3xl relative group ${
                   msg.senderId === playerId 
-                  ? 'bg-primary/20 border-primary/40 text-primary-foreground' 
-                  : 'bg-muted/40 border-white/10 text-foreground'
-                } border-2 backdrop-blur-md`}>
-                  <p className="text-sm font-medium leading-relaxed">{msg.text}</p>
+                  ? 'bg-primary/10 border-primary/30 text-white shadow-[0_0_20px_rgba(168,85,247,0.1)]' 
+                  : 'bg-secondary/10 border-secondary/30 text-white shadow-[0_0_20px_rgba(6,182,212,0.1)]'
+                } border-2 backdrop-blur-xl transition-all hover:scale-[1.02]`}>
+                  <div className="absolute -top-3 left-4 px-2 bg-black text-[8px] font-display text-muted-foreground uppercase tracking-widest">
+                    {players.find(p => p._id === msg.senderId)?.username || 'Unknown'}
+                  </div>
+                  <p className="text-sm md:text-base font-medium leading-relaxed tracking-wide">{msg.text}</p>
                   
-                  <div className="absolute -bottom-2 right-4 flex items-center gap-1 bg-black/80 px-2 py-0.5 rounded-full border border-white/20">
-                    <Flame className={`w-2.5 h-2.5 ${msg.quality > 80 ? 'text-red-500' : 'text-orange-400'}`} />
-                    <span className="text-[8px] font-bold">{Math.round(msg.quality)}%</span>
+                  {/* Heat/Quality Meter */}
+                  <div className="absolute -bottom-3 right-6 flex items-center gap-2 bg-black border border-white/10 px-3 py-1 rounded-full shadow-lg">
+                    <Flame className={`w-3 h-3 ${msg.quality > 80 ? 'text-red-500 animate-pulse' : 'text-orange-400'}`} />
+                    <span className="text-[10px] font-bold text-white">{Math.round(msg.quality)}% HEAT</span>
                   </div>
                   
-                  {msg.quality > 90 && (
-                    <div className="absolute inset-0 bg-primary/10 animate-glitch pointer-events-none rounded-2xl" />
+                  {/* Glitch & Sparks for High Impact */}
+                  {msg.quality > 85 && (
+                    <>
+                      <div className="absolute inset-0 bg-primary/5 animate-glitch pointer-events-none rounded-3xl" />
+                      <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: [0, 1, 0] }}
+                        className="absolute -inset-2 border border-primary/20 rounded-[2.5rem] pointer-events-none"
+                      />
+                    </>
                   )}
                 </div>
               </motion.div>
@@ -175,80 +221,105 @@ export function RoastBattleGame({ playerId, players, roomCode, onGameAction, onG
           </AnimatePresence>
         </div>
 
+        {/* Voting Overlay */}
         {phase === 'voting' && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-8"
+            className="absolute inset-0 bg-black/80 backdrop-blur-md z-50 flex flex-col items-center justify-center p-8 gap-8"
           >
-            <div className="flex gap-8">
-              {[0, 1].map((idx) => (
-                <Button 
-                  key={idx}
-                  variant="outline"
-                  className="h-32 w-32 flex flex-col gap-2 bg-card/80 hover:bg-primary/20 border-2 hover:border-primary transition-all group"
-                  onClick={() => onGameAction({ type: 'vote', payload: activePlayers[idx]?._id })}
-                >
-                  <Flame className="w-8 h-8 text-primary group-hover:scale-125 transition-transform" />
-                  <span className="font-display text-[10px]">{activePlayers[idx]?.username}</span>
-                </Button>
+            <h2 className="text-2xl font-display text-primary animate-pulse">CAST YOUR VOTES!</h2>
+            <div className="flex gap-12">
+              {activePlayers.map((player) => (
+                <motion.div key={player._id} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                  <Button 
+                    variant="outline"
+                    className="h-48 w-40 flex flex-col gap-4 bg-black/60 hover:bg-primary/20 border-2 border-primary/30 hover:border-primary transition-all group rounded-3xl"
+                    onClick={() => onGameAction({ type: 'vote', payload: player._id })}
+                  >
+                    <div className="w-20 h-20 rounded-full border-4 border-primary/40 overflow-hidden bg-muted group-hover:border-primary">
+                      {player.avatarUrl ? <img src={player.avatarUrl} alt="" className="w-full h-full object-cover" /> : <Users className="w-10 h-10 opacity-50 m-auto mt-4" />}
+                    </div>
+                    <div className="text-center">
+                      <span className="font-display text-[12px] block text-white mb-2">{player.username}</span>
+                      <Flame className="w-8 h-8 text-primary mx-auto group-hover:animate-bounce" />
+                    </div>
+                  </Button>
+                </motion.div>
               ))}
             </div>
           </motion.div>
         )}
       </div>
 
-      <div className="cyber-panel p-4 flex flex-col gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+      {/* Input / Control Deck */}
+      <div className="cyber-panel p-6 flex flex-col gap-4 bg-black/80 border-t-2 border-primary/20 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
+        {/* Neon Turn Timer Bar */}
+        <div className="flex flex-col gap-2">
+          <div className="flex justify-between items-center px-1">
+            <div className="flex items-center gap-2">
+              <Timer className={`w-4 h-4 ${timeLeft < 10 ? 'text-destructive animate-pulse' : 'text-secondary'}`} />
+              <span className={`text-[10px] font-display ${timeLeft < 10 ? 'text-destructive' : 'text-secondary'}`}>TIME_REMAINING: {timeLeft}S</span>
+            </div>
+            <span className="text-[8px] font-display text-white/20 tracking-[0.2em]">PHASE: {phase.toUpperCase()}</span>
+          </div>
+          <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden p-[1px] border border-white/5 shadow-inner">
             <motion.div 
               initial={{ width: "100%" }}
               animate={{ width: `${(timeLeft / 30) * 100}%` }}
-              className={`h-full ${timeLeft < 5 ? 'bg-destructive shadow-[0_0_8px_red]' : 'bg-secondary shadow-[0_0_8px_cyan]'}`}
+              className={`h-full rounded-full shadow-[0_0_15px_rgba(6,182,212,0.5)] transition-all duration-300 ${timeLeft < 10 ? 'bg-destructive' : 'bg-secondary'}`}
             />
-          </div>
-          <div className="flex items-center gap-1 min-w-[50px]">
-            <Timer className={`w-3 h-3 ${timeLeft < 5 ? 'text-destructive animate-pulse' : 'text-secondary'}`} />
-            <span className={`text-[10px] font-bold ${timeLeft < 5 ? 'text-destructive' : 'text-secondary'}`}>{timeLeft}s</span>
           </div>
         </div>
 
-        <div className="flex gap-3">
-          <div className="relative flex-1">
+        {/* Input Bar */}
+        <div className="flex gap-4 items-center">
+          <div className="relative flex-1 group">
             <Input 
               value={roastText}
               onChange={(e) => setRoastText(e.target.value)}
-              placeholder={isMyTurn ? "UNLEASH THE ROAST..." : "WAITING FOR TURN..."}
+              placeholder={isMyTurn ? "ENTER YOUR ROAST HERE..." : "WAITING FOR YOUR TURN..."}
               disabled={!isMyTurn}
-              className="h-12 bg-black/40 border-white/10 focus-visible:ring-primary text-sm font-medium pr-10"
+              className={`h-14 bg-black/40 border-2 rounded-2xl transition-all font-medium text-base px-6 pr-20 ${isMyTurn ? 'border-primary/50 focus-visible:ring-primary shadow-[0_0_15px_rgba(168,85,247,0.1)]' : 'border-white/5 opacity-50 cursor-not-allowed'}`}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             />
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
-              <span className="text-[8px] text-white/20 font-display">{roastText.length}/150</span>
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+              <span className={`text-[10px] font-display ${roastText.length > 130 ? 'text-destructive' : 'text-white/20'}`}>{roastText.length}/150</span>
             </div>
           </div>
           <Button 
             onClick={handleSend}
             disabled={!isMyTurn || !roastText.trim()}
-            className="h-12 px-6 bg-primary hover:bg-primary/90 text-primary-foreground font-display text-[10px] group"
+            className="h-14 px-8 bg-primary hover:bg-primary/90 text-white font-display text-xs rounded-2xl group shadow-[0_0_20px_rgba(168,85,247,0.4)] hover:shadow-[0_0_30px_rgba(168,85,247,0.6)] transition-all"
           >
-            SEND <Send className="w-3 h-3 ml-2 group-hover:translate-x-1 transition-transform" />
+            SEND ROAST <Send className="w-4 h-4 ml-3 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
           </Button>
         </div>
 
-        <div className="flex justify-between items-center px-1">
-          <div className="flex gap-4">
-            <Button variant="ghost" className="h-6 px-2 text-[8px] font-display text-white/30 hover:text-destructive">
-              <ShieldAlert className="w-3 h-3 mr-1" /> REPORT
+        {/* Footer HUD elements */}
+        <div className="flex justify-between items-center pt-2">
+          <div className="flex gap-3">
+            <Button variant="ghost" className="h-8 px-4 text-[9px] font-display text-white/30 hover:text-destructive hover:bg-destructive/10 rounded-xl">
+              <ShieldAlert className="w-3.5 h-3.5 mr-2" /> REPORT
             </Button>
-            <Button variant="ghost" className="h-6 px-2 text-[8px] font-display text-white/30 hover:text-primary">
-               BLOCK
+            <Button variant="ghost" className="h-8 px-4 text-[9px] font-display text-white/30 hover:text-white hover:bg-white/5 rounded-xl">
+              <UserPlus className="w-3.5 h-3.5 mr-2" /> BLOCK
             </Button>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[8px] font-display text-white/20">QUALITY:</span>
-            <div className="w-20 h-1.5 bg-white/5 rounded-full overflow-hidden">
-              <div className="heat-bar-fill" style={{ width: `${Math.min(100, roastText.length * 0.8)}%` }} />
+          
+          <div className="flex items-center gap-4 bg-black/40 px-6 py-2 rounded-2xl border border-white/5">
+            <div className="flex flex-col gap-1 items-end">
+              <span className="text-[8px] font-display text-white/40 tracking-widest">CREATIVITY_METER</span>
+              <div className="w-32 h-2 bg-white/5 rounded-full overflow-hidden border border-white/10">
+                <motion.div 
+                  animate={{ width: `${Math.min(100, roastText.length * 0.7)}%` }}
+                  className="heat-bar-fill"
+                />
+              </div>
+            </div>
+            <div className="flex flex-col items-center">
+              <Flame className={`w-5 h-5 ${roastText.length > 100 ? 'text-red-500 animate-bounce' : 'text-muted-foreground'}`} />
+              <span className="text-[8px] font-bold text-white/60">HOT</span>
             </div>
           </div>
         </div>
