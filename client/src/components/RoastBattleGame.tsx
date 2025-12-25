@@ -63,6 +63,7 @@ export function RoastBattleGame({ playerId, players, roomCode, onGameAction, onG
 
     sceneRef.current = scene;
 
+    // Initialize scene with data
     const data = {
       playerId,
       onGameAction: (action: any) => {
@@ -73,8 +74,9 @@ export function RoastBattleGame({ playerId, players, roomCode, onGameAction, onG
         onGameAction(action);
       },
     };
-    scene.events.emit('init', data);
+    scene.init(data);
 
+    // Add all players
     players.forEach((player) => {
       scene.addPlayer(player.id, player.username);
     });

@@ -65,11 +65,10 @@ export class RoastBattleScene extends Phaser.Scene {
       },
       loop: true
     });
+  }
 
-    // Render
-    this.events.on('update', () => {
-      this.renderGame();
-    });
+  update() {
+    this.renderGame();
   }
 
   private handlePhaseEnd() {
