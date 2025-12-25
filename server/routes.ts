@@ -397,5 +397,88 @@ export async function registerRoutes(
     }
   });
 
+  // Land.io Game Routes
+  const landIOGames = new Map<number, any>();
+
+  app.post('/api/rooms/:roomId/start-land-io', async (req, res) => {
+    try {
+      const roomId = Number(req.params.roomId);
+      const players = await storage.getPlayers(roomId);
+      
+      if (players.length < 2) {
+        return res.status(400).json({ message: "Need at least 2 players" });
+      }
+
+      const gameState = {
+        roomId,
+        startTime: Date.now(),
+        players: players.map((p, i) => ({
+          id: p.id,
+          username: p.username,
+          colorIndex: i,
+          isAlive: true,
+          score: 0,
+        })),
+        gameActive: true,
+      };
+
+      landIOGames.set(roomId, gameState);
+
+      broadcast(roomId, 'LAND_IO_START', { gameState });
+      res.json({ success: true });
+    } catch (err) {
+      console.error('Failed to start Land.io game', err);
+      res.status(500).json({ message: "Failed to start game" });
+    }
+  });
+
+  app.post('/api/rooms/:roomId/game-action', async (req, res) => {
+    try {
+      const roomId = Number(req.params.roomId);
+      const { type, playerId, ...payload } = req.body;
+
+      const gameState = landIOGames.get(roomId);
+      if (!gameState) {
+        return res.status(404).json({ message: "Game not found" });
+      }
+
+      if (type === 'territory_claimed') {
+        const player = gameState.players.find((p: any) => p.id === playerId);
+        if (player) {
+          player.score += payload.score || 0;
+        }
+      } else if (type === 'player_eliminated') {
+        const player = gameState.players.find((p: any) => p.id === playerId);
+        if (player) {
+          player.isAlive = false;
+        }
+      } else if (type === 'game_ended') {
+        gameState.gameActive = false;
+      }
+
+      broadcast(roomId, 'LAND_IO_ACTION', { type, playerId, ...payload });
+      res.json({ success: true });
+    } catch (err) {
+      console.error('Failed to process game action', err);
+      res.status(500).json({ message: "Failed to process action" });
+    }
+  });
+
+  app.get('/api/rooms/:roomId/game-state', async (req, res) => {
+    try {
+      const roomId = Number(req.params.roomId);
+      const gameState = landIOGames.get(roomId);
+      
+      if (!gameState) {
+        return res.status(404).json({ message: "Game not found" });
+      }
+
+      res.json(gameState);
+    } catch (err) {
+      console.error('Failed to get game state', err);
+      res.status(500).json({ message: "Failed to get game state" });
+    }
+  });
+
   return httpServer;
 }

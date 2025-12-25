@@ -7,7 +7,7 @@ import iconUrl from "@assets/icon.png";
 import { ArcadeBackground } from "@/components/ArcadeBackground";
 import { SoundToggle } from "@/components/SoundToggle";
 import { useSoundEffect } from "@/hooks/useSoundEffect";
-import { RoastBattleGame } from "@/components/microgames/RoastBattleGame";
+import { LandIOGame } from "@/components/LandIOGame";
 
 export default function GameRoom() {
   const [, params] = useRoute("/room/:code");
@@ -15,15 +15,13 @@ export default function GameRoom() {
   const { playClick, playSuccess } = useSoundEffect();
   const code = params?.code;
   const [roomId, setRoomId] = useState<number | null>(null);
-  const [gamePhase, setGamePhase] = useState<"lobby" | "waiting" | "roasting" | "voting" | "results">("lobby");
+  const [gamePhase, setGamePhase] = useState<"lobby" | "playing" | "results">("lobby");
   const [players, setPlayers] = useState<any[]>([]);
   const [error, setError] = useState("");
-  const [timeLeft, setTimeLeft] = useState(45);
   const [isHost, setIsHost] = useState(false);
   const [isAddingBot, setIsAddingBot] = useState(false);
-  const [currentBattle, setCurrentBattle] = useState<any>(null);
-  const [votesForPerformer1, setVotesForPerformer1] = useState(0);
-  const [votesForPerformer2, setVotesForPerformer2] = useState(0);
+  const [gameResults, setGameResults] = useState<any>(null);
+  const [currentPlayerId, setCurrentPlayerId] = useState<number | null>(null);
 
   // Load room data on mount
   useEffect(() => {
@@ -34,10 +32,14 @@ export default function GameRoom() {
         const data = await res.json();
         setRoomId(data.id);
         setPlayers(data.players || []);
-        // Check if current user is host
-        const currentUserId = localStorage.getItem(`user_${code}`);
+        
+        const storedUserId = localStorage.getItem(`user_${code}`);
+        if (storedUserId) {
+          setCurrentPlayerId(parseInt(storedUserId));
+        }
+        
         const hostPlayer = data.players?.find((p: any) => p.isHost);
-        if (hostPlayer) setIsHost(hostPlayer.id === parseInt(currentUserId || "0"));
+        if (hostPlayer) setIsHost(hostPlayer.id === parseInt(storedUserId || "0"));
       } catch (err) {
         setError("Failed to load room");
       }
@@ -68,83 +70,47 @@ export default function GameRoom() {
     }
   };
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft((t) => (t > 0 ? t - 1 : 0));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [gamePhase]);
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
-
   const handleCopyCode = () => {
     playClick();
     navigator.clipboard.writeText(code || "");
   };
 
-  const handleStartRoastBattle = async () => {
+  const handleStartGame = async () => {
     playClick();
-    if (!roomId) {
-      setError("Room not loaded");
+    if (!roomId || players.length < 2) {
+      setError("Need at least 2 players to start");
       return;
     }
     try {
-      const res = await fetch(`/api/rooms/${roomId}/start-roast`, {
+      const res = await fetch(`/api/rooms/${roomId}/start-land-io`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
-      if (!res.ok) throw new Error("Failed to start roast battle");
-      const battle = await res.json();
-      setCurrentBattle(battle);
-      setGamePhase("waiting");
-      setTimeLeft(45);
+      if (!res.ok) throw new Error("Failed to start game");
+      setGamePhase("playing");
       playSuccess();
     } catch (err) {
-      console.error("Start roast error", err);
-      setError("Failed to start roast battle");
+      console.error("Start game error", err);
+      setError("Failed to start Land.io game");
     }
   };
 
-  const handleVote = async (votedForId: number) => {
-    playClick();
-    if (!currentBattle) return;
+  const handleGameAction = async (action: any) => {
     try {
-      const res = await fetch(`/api/roast-battles/${currentBattle.id}/vote`, {
+      const res = await fetch(`/api/rooms/${roomId}/game-action`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ voterId: players[0]?.id, votedForId }),
+        body: JSON.stringify(action),
       });
-      if (!res.ok) throw new Error("Failed to vote");
-      if (votedForId === currentBattle.performer1Id) {
-        setVotesForPerformer1(prev => prev + 1);
-      } else {
-        setVotesForPerformer2(prev => prev + 1);
-      }
-      playSuccess();
+      if (!res.ok) throw new Error("Failed to process game action");
     } catch (err) {
-      console.error("Vote error", err);
-      setError("Failed to submit vote");
+      console.error("Game action error", err);
     }
   };
 
-  const handleEndBattle = async () => {
-    if (!currentBattle) return;
-    try {
-      const res = await fetch(`/api/roast-battles/${currentBattle.id}/end`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-      if (!res.ok) throw new Error("Failed to end battle");
-      setGamePhase("results");
-      playSuccess();
-    } catch (err) {
-      console.error("End battle error", err);
-      setError("Failed to end battle");
-    }
+  const handleGameEnd = (winners: any[]) => {
+    setGameResults(winners);
+    setGamePhase("results");
   };
 
   return (
@@ -156,10 +122,13 @@ export default function GameRoom() {
           <div className="flex items-center gap-3">
             <Flame className="w-12 h-12 text-red-600 animate-bounce" />
             <div>
-              <h1 className="text-4xl font-bold text-black" style={{ fontFamily: "'Press Start 2P', cursive" }}>ROAST BATTLE</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-4xl font-bold text-black" style={{ fontFamily: "'Press Start 2P', cursive" }}>LAND.IO</h1>
+                <span className="text-2xl font-bold text-purple-600" style={{ fontFamily: "'Press Start 2P', cursive" }}>@ thats.wtf</span>
+              </div>
               <div className="flex items-center gap-2 mt-1">
                 <p className="text-gray-700">Room: <span className="font-mono text-red-600 font-bold">{code}</span></p>
-                <Button size="sm" variant="ghost" onClick={handleCopyCode} className="h-6 w-6 p-0" data-testid="button-copy-code">
+                <Button size="sm" variant="ghost" onClick={handleCopyCode} className="h-6 w-6 p-0">
                   <Copy className="w-3 h-3" />
                 </Button>
               </div>
@@ -167,10 +136,6 @@ export default function GameRoom() {
           </div>
           <div className="flex items-center gap-4">
             <SoundToggle />
-            <div className="text-right border-4 border-black bg-yellow-300 px-4 py-2">
-              <p className="text-2xl font-bold text-black" style={{ fontFamily: "'Press Start 2P', cursive" }}>{formatTime(timeLeft)}</p>
-              <p className="text-gray-900 text-sm font-bold">ROUND TIME</p>
-            </div>
           </div>
         </div>
 
@@ -188,9 +153,12 @@ export default function GameRoom() {
           <div>
             {gamePhase === "lobby" && (
               <Card className="border-4 border-black bg-yellow-200 p-8">
-                <h2 className="text-3xl font-bold text-black mb-6" style={{ fontFamily: "'Press Start 2P', cursive" }}>PLAYER LOBBY</h2>
+                <div className="flex items-center gap-2 mb-6">
+                  <h2 className="text-3xl font-bold text-black" style={{ fontFamily: "'Press Start 2P', cursive" }}>LOBBY</h2>
+                  <span className="text-lg font-bold text-purple-600" style={{ fontFamily: "'Press Start 2P', cursive" }}>thats.wtf</span>
+                </div>
                 <div className="space-y-4">
-                  <p className="text-black font-bold text-lg">Players in room: {players.length}/8</p>
+                  <p className="text-black font-bold text-lg">Players: {players.length}/8</p>
                   <div className="grid grid-cols-2 gap-3">
                     {players.map((p) => (
                       <div key={p.id} className="bg-white border-3 border-black p-4">
@@ -198,7 +166,6 @@ export default function GameRoom() {
                         <div className="flex gap-2 mt-1">
                           {p.isHost && <p className="text-red-600 text-xs font-bold">HOST</p>}
                           {p.isBot && <p className="text-blue-600 text-xs font-bold">BOT</p>}
-                          {!p.isAlive && <p className="text-gray-600 text-xs font-bold">ELIMINATED</p>}
                         </div>
                       </div>
                     ))}
@@ -208,62 +175,55 @@ export default function GameRoom() {
                       onClick={handleAddBot}
                       disabled={isAddingBot}
                       className="w-full bg-red-600 hover:bg-red-700 text-white font-bold border-3 border-black"
-                      data-testid="button-add-bot"
                     >
                       <Plus className="w-4 h-4 mr-2" />
                       Add Bot Player
                     </Button>
                   )}
-                  {isHost && (
+                  {isHost && players.length >= 2 && (
                     <Button 
-                      onClick={handleStartRoastBattle}
-                      className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold border-3 border-black mt-6 text-lg" 
-                      data-testid="button-start-game"
+                      onClick={handleStartGame}
+                      className="w-full bg-green-600 hover:bg-green-700 text-white font-bold border-3 border-black text-lg mt-6"
                     >
-                      Start Game
+                      START GAME
                     </Button>
                   )}
                 </div>
               </Card>
             )}
 
-            {(gamePhase === "waiting" || gamePhase === "roasting" || gamePhase === "voting") && currentBattle && (
-              <div className="bg-white border-4 border-black p-8 min-h-96 flex items-center justify-center">
-                <RoastBattleGame
-                  performer1={{ id: currentBattle.performer1Id, username: currentBattle.performer1Id === players[0]?.id ? players[0]?.username : "Performer 1" }}
-                  performer2={{ id: currentBattle.performer2Id, username: currentBattle.performer2Id === players[1]?.id ? players[1]?.username : "Performer 2" }}
-                  currentPlayerId={players[0]?.id || 0}
-                  timeLimit={45}
-                  onVote={handleVote}
-                  phase={gamePhase as "waiting" | "roasting" | "voting" | "results"}
-                  votesForPerformer1={votesForPerformer1}
-                  votesForPerformer2={votesForPerformer2}
-                />
-              </div>
+            {gamePhase === "playing" && currentPlayerId && (
+              <LandIOGame
+                playerId={currentPlayerId}
+                players={players}
+                roomCode={code || ""}
+                onGameAction={handleGameAction}
+                onGameEnd={handleGameEnd}
+              />
             )}
 
-            {gamePhase === "results" && currentBattle && (
+            {gamePhase === "results" && gameResults && (
               <Card className="border-4 border-black bg-orange-200 p-8">
-                <h2 className="text-3xl font-bold text-black mb-6" style={{ fontFamily: "'Press Start 2P', cursive" }}>BATTLE RESULTS</h2>
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div className="bg-white border-3 border-black p-6 text-center">
-                    <p className="text-xl font-bold text-black mb-2">Performer 1</p>
-                    <p className="text-4xl font-bold text-yellow-500">{votesForPerformer1}</p>
-                    <p className="text-gray-600 font-bold">VOTES</p>
-                  </div>
-                  <div className="bg-white border-3 border-black p-6 text-center">
-                    <p className="text-xl font-bold text-black mb-2">Performer 2</p>
-                    <p className="text-4xl font-bold text-yellow-500">{votesForPerformer2}</p>
-                    <p className="text-gray-600 font-bold">VOTES</p>
-                  </div>
+                <div className="flex items-center gap-2 mb-6">
+                  <h2 className="text-3xl font-bold text-black" style={{ fontFamily: "'Press Start 2P', cursive" }}>GAME RESULTS</h2>
+                  <span className="text-lg font-bold text-purple-600" style={{ fontFamily: "'Press Start 2P', cursive" }}>thats.wtf</span>
                 </div>
-                <Button 
-                  onClick={handleStartRoastBattle}
-                  className="w-full bg-green-600 hover:bg-green-700 text-white font-bold border-3 border-black text-lg"
-                  data-testid="button-next-battle"
-                >
-                  NEXT BATTLE
-                </Button>
+                <div className="space-y-3 mb-6">
+                  {gameResults.map((winner: any, idx: number) => (
+                    <div key={idx} className="bg-white border-3 border-black p-4 flex justify-between">
+                      <span className="font-bold text-black">{idx + 1}. {winner.username}</span>
+                      <span className="font-bold text-yellow-600">{winner.score} pts</span>
+                    </div>
+                  ))}
+                </div>
+                {isHost && (
+                  <Button 
+                    onClick={handleStartGame}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold border-3 border-black text-lg"
+                  >
+                    PLAY AGAIN
+                  </Button>
+                )}
               </Card>
             )}
           </div>
@@ -271,17 +231,16 @@ export default function GameRoom() {
           {/* Sidebar */}
           {gamePhase !== "lobby" && (
             <div className="space-y-6">
-              {/* Players */}
               <Card className="border-4 border-black bg-red-200 p-4">
                 <div className="flex items-center gap-2 mb-4">
                   <Users className="w-5 h-5 text-red-600" />
-                  <h3 className="font-bold text-black">ALIVE PLAYERS ({players.filter(p => p.isAlive).length}/8)</h3>
+                  <h3 className="font-bold text-black">PLAYERS ({players.filter(p => p.isAlive).length}/{players.length})</h3>
                 </div>
                 <div className="space-y-2">
                   {players.filter(p => p.isAlive).map((p) => (
                     <div key={p.id} className="flex items-center justify-between text-sm font-bold bg-white p-2 border-2 border-black">
                       <span className="text-black">{p.username}</span>
-                      <span className="text-yellow-600">{p.score}pts</span>
+                      <span className="text-yellow-600">{p.score || 0}pts</span>
                     </div>
                   ))}
                 </div>

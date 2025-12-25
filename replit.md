@@ -1,189 +1,192 @@
-# Who Broke It? - Discord Activity Game
+# Land.io Game - thats.wtf Edition
 
 ## Project Overview
-A real-time multiplayer deception game built with Express, React, PostgreSQL, and WebSocket. Players experience social deception through mini-games with Discord integration and Activity SDK support.
+A real-time multiplayer territory-claiming game built with Phaser 3, Express, React, PostgreSQL, and WebSocket. Players expand their territory by creating trails and closing loops to claim land. Features Discord integration, pixel-perfect rendering, and high-performance game loop.
 
-## Recent Updates (2025-12-24)
+## Latest Update (2025-12-25)
 
-### Phase 1: Discord OAuth2 Setup ✅
-- **Database Schema**: Added `users` table with Discord profile data
-  - `discordId` (unique)
-  - `discordUsername`, `discordAvatar`, `discordEmail`
-  - `discordToken` for API access
-- **Backend OAuth Flow**: 
-  - `exchangeCodeForToken()`: Handles Discord authorization code exchange
-  - `getDiscordUser()`: Fetches authenticated user profile
-  - `handleDiscordCallback()`: Creates or updates user in database
-  - Route: `GET /auth/discord/callback` - OAuth redirect endpoint
-- **Secrets**: DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET (stored securely)
+### Land.io Game Engine Implementation ✅
+- **Phaser 3 Game Scene**: Pixel-perfect 2D rendering with optimized canvas
+  - Trail system with collision detection
+  - Territory management using flood-fill algorithm
+  - Real-time player synchronization
+  - 5-minute match timer with leaderboard tracking
+- **Game Mechanics**:
+  - WASD/Arrow keys to move and create trails
+  - Space to finalize territory claims
+  - Mouse/touch controls for mobile
+  - Player elimination on trail collision
+  - Automatic territory transfer on elimination
+- **thats.wtf Branding**: Integrated throughout UI with purple accent color
 
-### Phase 2: Activity SDK Initialization ✅
-- **DiscordContext** (`client/src/contexts/DiscordContext.tsx`):
-  - Manages Discord SDK initialization
-  - Handles OAuth login flow
-  - Provides user state and loading indicators
-  - TypeScript support for global `window.DiscordSDK`
-- **Frontend Env**: `VITE_DISCORD_CLIENT_ID` for OAuth flow
+### Frontend Architecture
+- **LandIOScene.ts**: Phaser game engine with physics, rendering, and state management
+- **LandIOGame.tsx**: React wrapper with game lifecycle and HUD overlay
+- **GameRoom.tsx**: Lobby, game lobby, and results screens with player management
+- **Features**:
+  - Bot player addition for testing
+  - Real-time game state synchronization
+  - Score tracking and leaderboard ranking
+  - Responsive pixel art UI matching Land.io aesthetic
 
-### Phase 3: Voice Channel Context Detection ✅
-- **VoiceContext** (`client/src/contexts/VoiceContext.tsx`):
-  - Tracks current user voice channel context
-  - `setVoiceContext()`: Sets active voice channel
-  - `clearVoiceContext()`: Cleans up on disconnect
-  - Integrated with WebSocket for server awareness
-- **WebSocket Support**: `voice_context` message type for channel updates
+### Backend Game Service
+- **server/routes.ts**: 
+  - `POST /api/rooms/:roomId/start-land-io` - Initialize game
+  - `POST /api/rooms/:roomId/game-action` - Sync player actions
+  - `GET /api/rooms/:roomId/game-state` - Fetch current state
+- **server/land-io-service.ts**: Game state management (planned)
+- **WebSocket Broadcasting**: Real-time updates to all players in room
 
-### Phase 4: Real-time Multiplayer Sync ✅
-- **WebSocket Enhancements**:
-  - `roomConnections`: Map tracking active connections per room
-  - `userVoiceChannels`: Map for voice channel detection
-  - `broadcast()`: Sends events to all players in a room
-- **useWebSocketSync Hook** (`client/src/hooks/useWebSocketSync.ts`):
-  - `send()`: Sends raw WebSocket messages
-  - `sendGameAction()`: Broadcasts game events to room
-  - `sendVoiceContext()`: Notifies server of voice channel
-  - Auto-connect/disconnect lifecycle
-- **Message Types**:
-  - `join`: Connect to room
-  - `voice_context`: Voice channel updates
-  - `game_action`: Game state synchronization
+### Performance Optimizations
+- **Phaser Rendering**: pixelArt: true for crisp pixel-perfect visuals
+- **Efficient Collision Detection**: Trail checking with spatial awareness
+- **Flood-Fill Territory**: Optimized territory claiming algorithm
+- **Canvas Rendering**: GPU-accelerated with fallback support
+- **Bundle**: Phaser (3.90.0), Matter.js (0.20.0), Konva (10.0.12)
 
-## Architecture
+## Tech Stack
 
-### Backend Stack
+### Frontend
+- **Game Engine**: Phaser 3.90.0 (2D, pixel art optimized)
+- **Rendering**: Konva.js 10.0.12, Canvas API
+- **Physics**: Matter.js 0.20.0
+- **Framework**: React 18.3.1 with TypeScript
+- **UI**: shadcn/ui + Tailwind CSS
+- **Routing**: wouter
+- **Build**: Vite with React plugin
+
+### Backend
 - **Framework**: Express.js with TypeScript
 - **Database**: PostgreSQL + Drizzle ORM
 - **Real-time**: WebSocket (ws library)
 - **Auth**: Discord OAuth2
 - **HTTP Client**: axios
 
-### Frontend Stack
-- **Framework**: React with TypeScript
-- **Build**: Vite with React plugin
-- **Routing**: wouter
-- **State**: React Context, Zustand, TanStack Query
-- **UI**: shadcn/ui components
-- **Styling**: Tailwind CSS
-
-### Database Schema
-- **users**: Discord authentication
-- **rooms**: Game lobbies
-- **players**: Player instances in rooms
-- **gameItems**: Objects that can break
-- **clues**: Player hints during rounds
-- **votes**: Accusation votes
+### Libraries
+- **Advanced Game Dev**: phaser, matter-js, konva
+- **State Management**: Zustand, React Context
+- **Query**: TanStack Query (React Query)
+- **Forms**: React Hook Form + Zod validation
+- **Icons**: Lucide React
+- **Styling**: Tailwind CSS + shadcn/ui
 
 ## File Structure
 ```
 src/
 ├── server/
-│   ├── index.ts              # Express server setup
-│   ├── routes.ts             # API & WebSocket handlers (Discord OAuth + real-time sync)
-│   ├── storage.ts            # Database operations
-│   ├── db.ts                 # Drizzle connection
-│   └── vite.ts               # Vite setup for dev
+│   ├── index.ts                    # Express server + HTTP setup
+│   ├── routes.ts                   # API endpoints + WebSocket + Land.io routes
+│   ├── storage.ts                  # Database operations
+│   ├── land-io-service.ts          # Game state management
+│   └── db.ts                       # Drizzle connection
 ├── client/
 │   ├── src/
-│   │   ├── App.tsx           # Root with Discord + Voice providers
-│   │   ├── contexts/
-│   │   │   ├── DiscordContext.tsx      # OAuth2 & SDK
-│   │   │   └── VoiceContext.tsx        # Voice channel tracking
-│   │   ├── hooks/
-│   │   │   └── useWebSocketSync.ts     # Real-time multiplayer
+│   │   ├── App.tsx                 # Root with providers
+│   │   ├── main.tsx                # Entry point
+│   │   ├── games/
+│   │   │   └── LandIOScene.ts      # Phaser game scene (pixel art, trails, territory)
+│   │   ├── components/
+│   │   │   ├── LandIOGame.tsx      # React wrapper for Phaser game
+│   │   │   └── ...other components
 │   │   ├── pages/
-│   │   │   ├── JoinLobby.tsx
-│   │   │   └── GameRoom.tsx
-│   │   └── components/
+│   │   │   ├── GameRoom.tsx        # Lobby + game UI (with thats.wtf branding)
+│   │   │   └── JoinLobby.tsx
+│   │   └── lib/                    # Utilities
+│   └── index.css                   # Global styles
 ├── shared/
-│   └── schema.ts             # Zod + Drizzle types
+│   └── schema.ts                   # Zod + Drizzle types
 └── dist/
-    └── public/               # Built frontend assets
+    └── public/                     # Built frontend
 ```
+
+## Game Mechanics
+
+### Core Loop
+1. **Lobby Phase**: Players join room (max 8)
+2. **Game Start**: Players spawn with initial territory (60x60 pixel square)
+3. **Expansion**: WASD to move and create trails
+4. **Territory Claim**: Space bar or loop closure to finalize territory
+5. **Elimination**: Hit own trail or opponent's active trail = eliminated
+6. **Territory Transfer**: Eliminated player's land becomes unclaimed
+7. **Victory**: 5-minute timer ends - highest score wins
+
+### Controls
+- **PC**: WASD/Arrow keys + Space
+- **Mobile**: Drag to move, tap to finalize
+- **Victory Condition**: Highest territory score after 5 minutes
+
+## API Endpoints
+
+### Game Management
+- `POST /api/rooms/create` - Create room
+- `POST /api/rooms/join` - Join room
+- `GET /api/rooms/:code` - Get room + players
+- `POST /api/rooms/:roomId/add-ai` - Add bot player
+
+### Land.io Game
+- `POST /api/rooms/:roomId/start-land-io` - Start game with players
+- `POST /api/rooms/:roomId/game-action` - Send player action (territory claim, elimination)
+- `GET /api/rooms/:roomId/game-state` - Fetch current game state
+
+## Branding
+**thats.wtf Edition**
+- Purple (#a855f7) accent color
+- Integrated in header, lobby, and game HUD
+- Press Start 2P font for retro pixel aesthetic
+- Consistent across all game screens
 
 ## Development Workflow
 
-### Prerequisites
-1. Discord Developer Application with OAuth2 enabled
-2. PostgreSQL database (managed by Replit)
-3. Node.js 20+ (configured)
-
-### Environment Setup
+### Running
 ```bash
-# Secrets (in Replit)
-DISCORD_CLIENT_ID=your_app_id
-DISCORD_CLIENT_SECRET=your_app_secret
-
-# Environment Variables
-VITE_DISCORD_CLIENT_ID=your_app_id (for frontend OAuth link)
+npm run dev          # Start dev server on port 5000
+npm run build        # Build for production
+npm run check        # TypeScript type checking
+npm run db:push      # Sync database schema
 ```
 
-### Running Development Server
+### Environment
 ```bash
-npm run dev        # Starts on port 5000
-npm run build      # TypeScript + bundling
-npm run check      # Type checking
-npm run db:push    # Sync database schema
+# Secrets (Replit)
+DISCORD_CLIENT_ID=your_id
+DISCORD_CLIENT_SECRET=your_secret
+
+# Frontend env
+VITE_DISCORD_CLIENT_ID=your_id
 ```
 
-## Key Features Implemented
+## Performance Notes
+- **Phaser pixelArt mode**: Disables antialiasing for crisp pixel rendering
+- **Flood-fill capped**: Territory limited to 2000 cells for performance
+- **Trail checking**: Optimized collision detection with O(n) algorithm
+- **WebSocket**: Real-time sync with broadcast to all players in room
+- **Canvas API**: Fallback rendering if WebGL unavailable
 
-✅ **Discord OAuth2 Authentication**
-- Authorization code flow
-- Secure token storage
-- User profile sync
+## Next Steps
+1. ✅ Implement Land.io core mechanics (trail, territory, collision)
+2. ✅ Add Phaser game scene with pixel art rendering
+3. ✅ WebSocket real-time multiplayer sync
+4. ✅ Add thats.wtf branding throughout UI
+5. 📋 Test with multiple players
+6. 📋 Optimize performance for 8+ concurrent games
+7. 📋 Add sound effects and animations
+8. 📋 Deploy to production
 
-✅ **Activity SDK Integration**
-- SDK initialization hooks
-- Context management
-- Ready state tracking
+## Technical Decisions
+- **Phaser over Pixi/Babylon**: Complete 2D game framework with built-in features
+- **Flood-fill for territory**: Simple, efficient spatial claiming algorithm
+- **WebSocket broadcast**: Lower latency than HTTP polling for multiplayer
+- **Canvas + Graphics API**: Cross-browser compatibility with performance
+- **React + TypeScript**: Type-safe component architecture with hot reload
 
-✅ **Voice Channel Detection**
-- WebSocket voice context messages
-- Per-user channel tracking
-- Context cleanup
+## Known Limitations
+- LSP diagnostics for Phaser types (runtime compatible)
+- Territory capped at 2000 cells to prevent memory issues
+- 8 player limit per room (configurable)
+- 5-minute match duration (hardcoded)
 
-✅ **Real-time Multiplayer**
-- WebSocket broadcast to rooms
-- Game action synchronization
-- Player presence tracking
-- Voice context awareness
-
-## Next Steps for User
-
-1. **Complete Discord App Setup**:
-   - Set Redirect URI: `https://{your-replit-domain}/auth/discord/callback`
-   - Enable necessary OAuth2 scopes (identify, email, rpc)
-
-2. **Test OAuth Flow**:
-   - Login button triggers Discord auth
-   - Callback creates/updates user
-   - Token stored for API access
-
-3. **Extend Voice Integration**:
-   - Implement Discord Activity SDK full initialization
-   - Add voice state updates
-   - Connect to actual voice channels
-
-4. **Optimize Real-time Sync**:
-   - Add message queuing for reliability
-   - Implement reconnection logic
-   - Add latency compensation
-
-## Deployment
-
-Configuration is set in `replit.ts`:
-- **Build**: `npm run build`
-- **Run**: `node ./dist/index.cjs`
-- **Port**: 5000 (auto-exposed)
-
-## Security Notes
-- Discord tokens stored in database with httpOnly cookies
-- OAuth code exchange happens server-side
-- All secrets managed via Replit Secrets
-- WebSocket connections tracked per room
-
-## Tech Decisions
-- **WebSocket over HTTP polling**: Lower latency for multiplayer
-- **Voice channel detection at WebSocket level**: Tracks Discord context automatically
-- **React Context for state**: Lightweight, no additional dependencies
-- **Drizzle ORM**: Type-safe database layer with migrations
+## User Preferences & Notes
+- Pixel-perfect art style matching Land.io theme
+- Fast-paced competitive gameplay
+- Clean, retro UI with modern React stack
+- WebSocket for seamless real-time multiplayer
