@@ -166,3 +166,68 @@ VITE_DISCORD_CLIENT_ID=your_id
 - Dark theme with purple/cyan branding
 - Real-time multiplayer focus
 - Ready for Discord Activities on voice channels
+
+## 🤖 Discord Bot Integration
+
+### Bot Setup
+
+#### 1. Create Discord Bot
+1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
+2. Click "New Application"
+3. Name it "WTF Land Bot"
+4. Go to "Bot" section → Click "Add Bot"
+5. Copy the TOKEN and set it as `DISCORD_BOT_TOKEN` env var
+6. Enable "Message Content Intent"
+7. Go to OAuth2 → URL Generator
+8. Scopes: `bot`
+9. Permissions: `Send Messages`, `Embed Links`, `Use Slash Commands`
+10. Copy generated URL and invite bot to your server
+
+#### 2. Environment Setup
+```bash
+DISCORD_BOT_TOKEN=your_bot_token_here
+GAME_API_URL=http://localhost:5000
+GAME_WEB_URL=https://your-replit-domain.replit.dev
+```
+
+#### 3. Install Dependencies
+```bash
+pip install -r requirements.txt
+```
+
+#### 4. Run Bot (Separate Terminal)
+```bash
+python discord_bot.py
+```
+
+### Bot Commands
+
+| Command | Description | Usage |
+|---------|-------------|-------|
+| `/create [max_players]` | Create new game room | `/create 4` |
+| `/join [room_code]` | Join existing room | `/join ABC123` |
+| `/invite` | Get room invite link | `/invite` |
+| `/status` | Check game status | `/status` |
+| `/info` | Game information | `/info` |
+| `/help` | Show help | `/help` |
+
+### Features
+- ✅ Slash commands for easy game management
+- ✅ Automatic room creation with shareable codes
+- ✅ Player tracking and status updates
+- ✅ Embed-based UI with rich formatting
+- ✅ Direct links to game web interface
+- ✅ Multi-guild support (multiple servers)
+
+### Workflow
+1. User runs `/create` in Discord → Bot creates room
+2. Bot sends room code + direct play link
+3. Players can `/join` or click link
+4. All players land in game room together
+5. Bot tracks game status with `/status`
+
+### Architecture
+- **discord_bot.py**: Slash commands + API integration
+- **aiohttp**: Async HTTP client for game API calls
+- **discord.py 2.3**: Latest slash command support
+- **Embeds**: Rich Discord message formatting
