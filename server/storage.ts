@@ -12,35 +12,34 @@ export class DatabaseStorage {
   async createRoom(hostId?: string): Promise<IRoom> {
     const code = nanoid(4).toUpperCase();
     const room = await Room.create({ code, hostId });
-    return room.toObject() as IRoom;
+    return room.toObject() as unknown as IRoom;
   }
 
   async getRoomByCode(code: string): Promise<IRoom | undefined> {
     const room = await Room.findOne({ code });
-    return room ? (room.toObject() as IRoom) : undefined;
+    return room ? (room.toObject() as unknown as IRoom) : undefined;
   }
 
   async getRoom(id: string): Promise<IRoom | undefined> {
     const room = await Room.findById(id);
-    return room ? (room.toObject() as IRoom) : undefined;
+    return room ? (room.toObject() as unknown as IRoom) : undefined;
   }
 
   async addPlayer(roomId: string, player: Partial<IPlayer>): Promise<IPlayer> {
     const room = await Room.findById(roomId);
     if (!room) throw new Error("Room not found");
     
-    // Check if player already exists by username to avoid duplicates
-    const existingPlayer = room.players.find(p => p.username === player.username);
-    if (existingPlayer) return existingPlayer.toObject() as IPlayer;
+    const existingPlayer = room.players.find((p: any) => p.username === player.username);
+    if (existingPlayer) return existingPlayer.toObject() as unknown as IPlayer;
 
     room.players.push(player);
     await room.save();
-    return room.players[room.players.length - 1].toObject() as IPlayer;
+    return room.players[room.players.length - 1].toObject() as unknown as IPlayer;
   }
 
   async getPlayers(roomId: string): Promise<IPlayer[]> {
     const room = await Room.findById(roomId);
-    return room ? (room.players.toObject() as IPlayer[]) : [];
+    return room ? (room.players.toObject() as unknown as IPlayer[]) : [];
   }
 
   async updateRoomStatus(roomId: string, status: string): Promise<void> {
@@ -55,12 +54,12 @@ export class DatabaseStorage {
 
   async getUserByDiscordId(discordId: string): Promise<IUser | undefined> {
     const user = await User.findOne({ discordId });
-    return user ? (user.toObject() as IUser) : undefined;
+    return user ? (user.toObject() as unknown as IUser) : undefined;
   }
 
   async createUser(data: Partial<IUser>): Promise<IUser> {
     const user = await User.create(data);
-    return user.toObject() as IUser;
+    return user.toObject() as unknown as IUser;
   }
 
   async updateUserToken(userId: string, discordToken: string): Promise<void> {

@@ -9,20 +9,19 @@ export default function GameRoom() {
   const [, params] = useRoute("/room/:code");
   const [, navigate] = useLocation();
   const code = params?.code;
-  const [roomId, setRoomId] = useState<number | null>(null);
+  const [roomId, setRoomId] = useState<string | null>(null);
   const [gamePhase, setGamePhase] = useState<"lobby" | "playing" | "results">("lobby");
   const [players, setPlayers] = useState<any[]>([]);
   const [error, setError] = useState("");
   const [isHost, setIsHost] = useState(false);
   const [isAddingBot, setIsAddingBot] = useState(false);
   const [gameResults, setGameResults] = useState<any>(null);
-  const [currentPlayerId, setCurrentPlayerId] = useState<number | null>(null);
+  const [currentPlayerId, setCurrentPlayerId] = useState<string | null>(null);
 
   useEffect(() => {
     const autoJoin = async () => {
-      // Automatic join for Discord Activity
-      if (window.discord?.activity) {
-        const user = window.discord.user;
+      if ((window as any).discord?.activity) {
+        const user = (window as any).discord.user;
         if (user && !localStorage.getItem(`user_${code}`)) {
           try {
             const res = await fetch("/api/rooms/join", {
@@ -98,7 +97,7 @@ export default function GameRoom() {
       return;
     }
     try {
-      const endpoint = `/api/rooms/${roomId}/start-roast-battle`;
+      const endpoint = `/api/rooms/${roomId}/start`;
       
       const res = await fetch(endpoint, {
         method: "POST",
@@ -133,7 +132,6 @@ export default function GameRoom() {
   return (
     <div className="min-h-screen p-4 bg-gradient-to-b from-black via-purple-950 to-black">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
             <div className="flex items-center gap-3 mb-1">
@@ -166,7 +164,6 @@ export default function GameRoom() {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Game Area */}
           <div className="lg:col-span-2">
             {gamePhase === "lobby" && (
               <Card className="border-4 border-purple-500 bg-black/70 p-8">
@@ -179,7 +176,7 @@ export default function GameRoom() {
                   <p className="text-gray-300 font-bold">Players: {players.length}/8</p>
                   <div className="grid grid-cols-2 gap-3">
                     {players.map((p) => (
-                      <div key={p.id} className="bg-purple-950 border-2 border-purple-500 p-4 rounded">
+                      <div key={p._id} className="bg-purple-950 border-2 border-purple-500 p-4 rounded">
                         <p className="text-white font-bold">{p.username}</p>
                         <div className="flex gap-2 mt-2">
                           {p.isHost && <span className="text-xs bg-red-600 text-white px-2 py-1 rounded font-bold">HOST</span>}
@@ -250,7 +247,6 @@ export default function GameRoom() {
             )}
           </div>
 
-          {/* Sidebar */}
           {gamePhase !== "lobby" && (
             <div>
               <Card className="border-4 border-cyan-500 bg-black/70 p-4 sticky top-4">
@@ -260,7 +256,7 @@ export default function GameRoom() {
                 </div>
                 <div className="space-y-2">
                   {players.filter(p => p.isAlive !== false).map((p) => (
-                    <div key={p.id} className="flex items-center justify-between text-sm font-bold bg-purple-950 p-2 border border-purple-500 rounded">
+                    <div key={p._id} className="flex items-center justify-between text-sm font-bold bg-purple-950 p-2 border border-purple-500 rounded">
                       <span className="text-white">{p.username}</span>
                       <span className="text-cyan-400">{p.score || 0}pts</span>
                     </div>

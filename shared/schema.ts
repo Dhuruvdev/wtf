@@ -1,4 +1,4 @@
-import { Schema, model, connect } from "mongoose";
+import { Schema, model } from "mongoose";
 import { z } from "zod";
 
 // === MONGOOSE SCHEMAS ===
@@ -54,17 +54,40 @@ export const insertPlayerSchema = z.object({
 });
 
 // === TYPES ===
-export type IUser = z.infer<typeof insertUserSchema> & { _id: string };
+export type IUser = {
+  _id: any;
+  discordId: string;
+  discordUsername: string;
+  discordAvatar?: string;
+  discordEmail?: string;
+  discordToken: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+};
+
+export type IPlayer = {
+  _id: any;
+  username: string;
+  avatarUrl?: string;
+  score: number;
+  isHost: boolean;
+  isBot: boolean;
+  isAlive: boolean;
+};
+
 export type IRoom = {
-  _id: string;
+  _id: any;
   code: string;
   status: string;
   round: number;
+  maxRounds: number;
   maxPlayers: number;
+  hostId?: any;
   players: IPlayer[];
   gameState: any;
+  createdAt?: Date;
+  updatedAt?: Date;
 };
-export type IPlayer = z.infer<typeof insertPlayerSchema> & { _id: string, score: number, isHost: boolean, isBot: boolean, isAlive: boolean };
 
 export const WS_EVENTS = {
   PLAYER_JOINED: 'player_joined',

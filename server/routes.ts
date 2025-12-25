@@ -2,10 +2,8 @@ import type { Express } from "express";
 import type { Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
-import { api } from "@shared/routes";
 import { WS_EVENTS } from "@shared/schema";
 import axios from "axios";
-import { z } from "zod";
 
 // Discord OAuth Types
 interface DiscordTokenResponse {
@@ -86,13 +84,11 @@ export async function registerRoutes(
 ): Promise<Server> {
   // WebSocket Setup - Track room membership
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
-  const roomConnections = new Map<number, Set<WebSocket>>();
-  const userVoiceChannels = new Map<number, string>(); // userId -> voiceChannelId
+  const roomConnections = new Map<string, Set<WebSocket>>();
 
   wss.on('connection', (ws) => {
     console.log('Client connected');
-    let currentRoomId: number | null = null;
-    let currentUserId: number | null = null;
+    let currentRoomId: string | null = null;
 
     ws.on('message', async (message) => {
       try {
@@ -101,25 +97,18 @@ export async function registerRoutes(
         if (data.type === 'join' && data.roomCode) {
           const room = await storage.getRoomByCode(data.roomCode);
           if (room) {
-            currentRoomId = room.id;
-            if (!roomConnections.has(room.id)) {
-              roomConnections.set(room.id, new Set());
+            currentRoomId = room._id.toString();
+            if (!roomConnections.has(currentRoomId)) {
+              roomConnections.set(currentRoomId, new Set());
             }
-            roomConnections.get(room.id)?.add(ws);
-            console.log(`Client joined room ${room.id}`);
+            roomConnections.get(currentRoomId)?.add(ws);
+            console.log(`Client joined room ${currentRoomId}`);
             
             // Broadcast player joined event
-            broadcast(room.id, WS_EVENTS.PLAYER_JOINED, { playerId: data.playerId });
+            broadcast(currentRoomId, WS_EVENTS.PLAYER_JOINED, { playerId: data.playerId });
           }
         }
         
-        // Voice channel context detection
-        if (data.type === 'voice_context' && data.voiceChannelId) {
-          currentUserId = data.userId;
-          userVoiceChannels.set(data.userId, data.voiceChannelId);
-          console.log(`User ${data.userId} in voice channel ${data.voiceChannelId}`);
-        }
-
         // Real-time multiplayer sync
         if (data.type === 'game_action' && currentRoomId) {
           broadcast(currentRoomId, data.eventType, data.payload);
@@ -132,15 +121,12 @@ export async function registerRoutes(
     ws.on('close', () => {
       if (currentRoomId && roomConnections.has(currentRoomId)) {
         roomConnections.get(currentRoomId)?.delete(ws);
-        if (currentUserId) {
-          userVoiceChannels.delete(currentUserId);
-        }
       }
       console.log('Client disconnected');
     });
   });
 
-  function broadcast(roomId: number, type: string, payload: any) {
+  function broadcast(roomId: string, type: string, payload: any) {
     const connections = roomConnections.get(roomId);
     if (connections) {
       const message = JSON.stringify({ type, payload });
@@ -164,7 +150,7 @@ export async function registerRoutes(
       
       // Store token in session/cookie and redirect
       res.cookie('discord_token', accessToken, { httpOnly: true, secure: true });
-      res.redirect(`/?userId=${user.id}&token=${accessToken}`);
+      res.redirect(`/?userId=${user._id}&token=${accessToken}`);
     } catch (error) {
       console.error('OAuth callback error:', error);
       res.status(500).json({ message: 'Authentication failed' });
@@ -176,7 +162,7 @@ export async function registerRoutes(
     try {
       const { username, avatarUrl } = req.body;
       const room = await storage.createRoom();
-      const player = await storage.addPlayer(room._id, {
+      const player = await storage.addPlayer(room._id.toString(), {
         username,
         avatarUrl,
         isHost: true,
@@ -184,8 +170,8 @@ export async function registerRoutes(
 
       res.status(201).json({ 
         code: room.code,
-        playerId: player._id,
-        roomId: room._id
+        playerId: player._id.toString(),
+        roomId: room._id.toString()
       });
     } catch (err) {
       res.status(500).json({ message: "Failed to create room" });
@@ -198,8 +184,8 @@ export async function registerRoutes(
       const room = await storage.getRoomByCode(code);
       if (!room) return res.status(404).json({ message: "Room not found" });
 
-      const player = await storage.addPlayer(room._id, { username, avatarUrl });
-      res.status(200).json({ roomId: room._id, playerId: player._id, code: room.code });
+      const player = await storage.addPlayer(room._id.toString(), { username, avatarUrl });
+      res.status(200).json({ roomId: room._id.toString(), playerId: player._id.toString(), code: room.code });
     } catch (err) {
       res.status(500).json({ message: "Failed to join room" });
     }
@@ -217,7 +203,6 @@ export async function registerRoutes(
     }
   });
 
-  // Add AI player endpoint
   app.post('/api/rooms/:roomId/add-ai', async (req, res) => {
     try {
       const roomId = req.params.roomId;
@@ -240,7 +225,6 @@ export async function registerRoutes(
     }
   });
 
-  // Start game endpoint
   app.post('/api/rooms/:roomId/start', async (req, res) => {
     try {
       const roomId = req.params.roomId;
@@ -250,22 +234,13 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Room not found" });
       }
 
-      console.log(`Starting game for room ${roomId}`);
-
-      // Update room status to playing
       await storage.updateRoomStatus(roomId, 'playing');
-      
-      // Broadcast start game event
       broadcast(roomId, WS_EVENTS.START_GAME, { roomId });
-      
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ message: "Failed to start game" });
     }
   });
-
-
-  // Roast Battle Game Routes
 
   return httpServer;
 }

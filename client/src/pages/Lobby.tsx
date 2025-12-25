@@ -1,12 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useCreateRoom, useJoinRoom } from "@/hooks/use-rooms";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { GameCard } from "@/components/GameCard";
-import { Dice5, Users, ArrowRight, Gamepad2 } from "lucide-react";
+import { Dice5, Gamepad2 } from "lucide-react";
 import { motion } from "framer-motion";
-import { useEffect } from "react";
 
 export default function Lobby() {
   const [username, setUsername] = useState("");
@@ -17,9 +16,8 @@ export default function Lobby() {
   const joinRoom = useJoinRoom();
 
   useEffect(() => {
-    // If we're in a Discord Activity, try to auto-join if we have context
-    if (window.discord?.activity?.roomCode) {
-      setLocation(`/room/${window.discord.activity.roomCode}`);
+    if ((window as any).discord?.activity?.roomCode) {
+      setLocation(`/room/${(window as any).discord.activity.roomCode}`);
     }
   }, []);
 
@@ -27,8 +25,7 @@ export default function Lobby() {
     if (!username.trim()) return;
     try {
       const data = await createRoom.mutateAsync({ username });
-      // Store socketId if needed for initial connection logic in GameRoom
-      localStorage.setItem(`player_${data.code}`, String(data.playerId));
+      localStorage.setItem(`user_${data.code}`, data.playerId);
       setLocation(`/room/${data.code}`);
     } catch (e) {
       // Error handled by hook
@@ -42,7 +39,7 @@ export default function Lobby() {
         code: roomCode.toUpperCase(), 
         username 
       });
-      localStorage.setItem(`player_${roomCode.toUpperCase()}`, String(data.playerId));
+      localStorage.setItem(`user_${roomCode.toUpperCase()}`, data.playerId);
       setLocation(`/room/${roomCode.toUpperCase()}`);
     } catch (e) {
       // Error handled by hook
@@ -51,7 +48,6 @@ export default function Lobby() {
 
   return (
     <div className="min-h-screen bg-[#36393f] flex flex-col items-center justify-center p-4 relative overflow-hidden">
-      {/* Background Decor */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 rounded-full blur-[100px]" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-500/20 rounded-full blur-[100px]" />
@@ -96,9 +92,7 @@ export default function Lobby() {
                 onClick={handleCreate}
                 disabled={!username.trim() || createRoom.isPending}
               >
-                {createRoom.isPending ? (
-                  "Creating..."
-                ) : (
+                {createRoom.isPending ? "Creating..." : (
                   <>
                     <Dice5 className="mr-2 w-5 h-5" />
                     New Game
@@ -132,10 +126,6 @@ export default function Lobby() {
             </div>
           </div>
         </GameCard>
-        
-        <p className="text-center text-xs text-muted-foreground/50">
-          By playing, you agree to have fun and maybe lose friends.
-        </p>
       </div>
     </div>
   );
