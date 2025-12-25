@@ -4,15 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { AlertCircle } from "lucide-react";
-import logoUrl from "@assets/logo.png";
-import { SpaceBackground } from "@/components/SpaceBackground";
-import { GameGuide } from "@/components/GameGuide";
 
 export default function JoinLobby() {
   const [, navigate] = useLocation();
   const [username, setUsername] = useState("");
   const [roomCode, setRoomCode] = useState("");
-  const [isCreating, setIsCreating] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleCreateRoom = async () => {
@@ -20,7 +17,7 @@ export default function JoinLobby() {
       setError("Please enter your username");
       return;
     }
-    setIsCreating(true);
+    setIsLoading(true);
     try {
       const res = await fetch("/api/rooms/create", {
         method: "POST",
@@ -35,7 +32,7 @@ export default function JoinLobby() {
       console.error("Create error", err);
       setError("Failed to create room");
     } finally {
-      setIsCreating(false);
+      setIsLoading(false);
     }
   };
 
@@ -44,7 +41,7 @@ export default function JoinLobby() {
       setError("Please enter username and room code");
       return;
     }
-    setIsCreating(true);
+    setIsLoading(true);
     try {
       const res = await fetch("/api/rooms/join", {
         method: "POST",
@@ -59,79 +56,106 @@ export default function JoinLobby() {
       console.error("Join error", err);
       setError("Failed to join room");
     } finally {
-      setIsCreating(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <SpaceBackground />
+    <div className="min-h-screen bg-gradient-to-b from-black via-purple-950 to-black flex items-center justify-center p-4">
+      {/* Pixel pattern background */}
+      <div className="absolute inset-0 opacity-10">
+        <div className="absolute top-0 left-0 w-96 h-96 bg-purple-600 rounded-full mix-blend-multiply filter blur-3xl"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-cyan-600 rounded-full mix-blend-multiply filter blur-3xl"></div>
+      </div>
+
       <div className="w-full max-w-2xl relative z-10">
-        {/* Game Guide */}
-        <GameGuide />
-        
-        {/* Login Card */}
-        <Card className="border-slate-700 bg-slate-800/80 backdrop-blur-sm">
-        <div className="p-8">
-          <div className="flex justify-center mb-6">
-            <img src={logoUrl} alt="WHO BROKE IT?" className="h-32 w-auto drop-shadow-lg" data-testid="img-logo" />
-          </div>
-          <h1 className="text-4xl font-bold text-white mb-2 text-center">WHO BROKE IT?</h1>
-          <p className="text-slate-400 text-center mb-8">Social Deception • Chaos • Accusations</p>
-
-          <div className="space-y-4 mb-6">
-            <Input
-              placeholder="Your username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
-              data-testid="input-username"
-            />
-          </div>
-
-          {error && (
-            <div className="mb-4 p-3 bg-red-900/20 border border-red-700 rounded-md flex gap-2 text-red-300 text-sm">
-              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-              {error}
-            </div>
-          )}
-
-          <div className="space-y-3">
-            <Button
-              onClick={handleCreateRoom}
-              disabled={isCreating}
-              className="w-full bg-purple-600 hover:bg-purple-700"
-              data-testid="button-create-room"
-            >
-              Create Game
-            </Button>
-
-            <div className="relative flex items-center my-6">
-              <div className="flex-1 border-t border-slate-600"></div>
-              <span className="px-3 text-slate-500 text-sm">OR</span>
-              <div className="flex-1 border-t border-slate-600"></div>
+        <Card className="border-4 border-purple-500 bg-black/80 backdrop-blur-sm shadow-2xl">
+          <div className="p-12">
+            {/* Title */}
+            <div className="text-center mb-12">
+              <h1 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-cyan-400 mb-2" style={{ fontFamily: "'Press Start 2P', cursive" }}>
+                WTF LAND
+              </h1>
+              <p className="text-lg font-bold text-purple-300 mb-2" style={{ fontFamily: "'Press Start 2P', cursive" }}>@ thats.wtf</p>
+              <p className="text-sm text-gray-400">Territory Claiming • Discord Activity • Multiplayer Chaos</p>
             </div>
 
-            <div>
-              <Input
-                placeholder="Enter room code"
-                value={roomCode}
-                onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-                className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500 mb-3"
-                data-testid="input-room-code"
-              />
+            {/* Error Alert */}
+            {error && (
+              <div className="mb-6 p-4 bg-red-900/30 border-2 border-red-500 rounded-lg flex gap-3 text-red-300">
+                <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                <span className="font-bold">{error}</span>
+              </div>
+            )}
+
+            {/* Main Content */}
+            <div className="space-y-6">
+              {/* Username Input */}
+              <div>
+                <label className="block text-purple-300 font-bold mb-2 text-sm">YOUR USERNAME</label>
+                <Input
+                  placeholder="Enter your username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleCreateRoom()}
+                  className="bg-purple-950 border-2 border-purple-500 text-white placeholder:text-purple-400 h-12 font-bold"
+                />
+              </div>
+
+              {/* Create Room Button */}
+              <Button
+                onClick={handleCreateRoom}
+                disabled={isLoading}
+                className="w-full h-12 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold text-lg border-2 border-purple-400 shadow-lg"
+              >
+                {isLoading ? "CREATING..." : "CREATE ROOM"}
+              </Button>
+
+              {/* Divider */}
+              <div className="relative flex items-center">
+                <div className="flex-1 border-t-2 border-purple-500"></div>
+                <span className="px-4 text-purple-400 font-bold text-sm">OR JOIN EXISTING</span>
+                <div className="flex-1 border-t-2 border-purple-500"></div>
+              </div>
+
+              {/* Join Room */}
+              <div>
+                <label className="block text-purple-300 font-bold mb-2 text-sm">ROOM CODE</label>
+                <Input
+                  placeholder="Enter room code (e.g., ABC123)"
+                  value={roomCode}
+                  onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => e.key === 'Enter' && handleJoinRoom()}
+                  className="bg-purple-950 border-2 border-purple-500 text-white placeholder:text-purple-400 h-12 font-bold"
+                />
+              </div>
+
               <Button
                 onClick={handleJoinRoom}
-                disabled={isCreating}
-                variant="outline"
-                className="w-full border-slate-600 hover:bg-slate-700"
-                data-testid="button-join-room"
+                disabled={isLoading}
+                className="w-full h-12 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white font-bold text-lg border-2 border-cyan-400 shadow-lg"
               >
-                Join Game
+                {isLoading ? "JOINING..." : "JOIN ROOM"}
               </Button>
             </div>
+
+            {/* How to Play */}
+            <div className="mt-12 p-6 bg-purple-950/50 border-2 border-purple-500 rounded-lg">
+              <h3 className="text-purple-300 font-bold text-sm mb-3" style={{ fontFamily: "'Press Start 2P', cursive" }}>HOW TO PLAY</h3>
+              <ul className="text-xs text-gray-300 space-y-2 font-mono">
+                <li>🎮 <span className="text-purple-300 font-bold">WASD</span> or Arrow Keys to move</li>
+                <li>🌍 Close loops with your trail to claim territory</li>
+                <li>💥 Hit your own trail or opponent's trail = eliminated</li>
+                <li>🏆 Highest territory score in 5 minutes wins</li>
+                <li>👥 Play with 2-8 players on Discord Voice Chat</li>
+              </ul>
+            </div>
+
+            {/* Discord Activity Note */}
+            <div className="mt-8 text-center">
+              <p className="text-xs text-gray-500 font-mono">Discord Activity • Voice Channel Support • Cross-Platform Play</p>
+            </div>
           </div>
-        </div>
         </Card>
       </div>
     </div>
