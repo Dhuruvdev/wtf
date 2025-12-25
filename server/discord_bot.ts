@@ -23,7 +23,7 @@ const GAME_WEB_URL = process.env.GAME_WEB_URL || `https://${process.env.REPLIT_S
 
 const activeGames = new Map<string, any>();
 
-client.once('ready', async () => {
+client.once('clientReady', async () => {
   console.log(`✅ Discord Bot logged in as ${client.user?.tag}`);
   
   const commands = [
