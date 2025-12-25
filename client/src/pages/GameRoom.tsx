@@ -3,7 +3,6 @@ import { useLocation, useRoute } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { AlertCircle, Users, Copy, Plus } from "lucide-react";
-import { LandIOGame } from "@/components/LandIOGame";
 import { RoastBattleGame } from "@/components/RoastBattleGame";
 
 export default function GameRoom() {
@@ -12,7 +11,6 @@ export default function GameRoom() {
   const code = params?.code;
   const [roomId, setRoomId] = useState<number | null>(null);
   const [gamePhase, setGamePhase] = useState<"lobby" | "playing" | "results">("lobby");
-  const [gameMode, setGameMode] = useState<"land-io" | "roast-battle">("roast-battle");
   const [players, setPlayers] = useState<any[]>([]);
   const [error, setError] = useState("");
   const [isHost, setIsHost] = useState(false);
@@ -74,9 +72,7 @@ export default function GameRoom() {
       return;
     }
     try {
-      const endpoint = gameMode === "roast-battle" 
-        ? `/api/rooms/${roomId}/start-roast-battle`
-        : `/api/rooms/${roomId}/start-land-io`;
+      const endpoint = `/api/rooms/${roomId}/start-roast-battle`;
       
       const res = await fetch(endpoint, {
         method: "POST",
@@ -86,7 +82,7 @@ export default function GameRoom() {
       setGamePhase("playing");
     } catch (err) {
       console.error("Start game error", err);
-      setError(`Failed to start ${gameMode} game`);
+      setError(`Failed to start Roast Battle game`);
     }
   };
 
@@ -152,28 +148,6 @@ export default function GameRoom() {
                   <h2 className="text-3xl font-bold text-purple-300" style={{ fontFamily: "'Press Start 2P', cursive" }}>
                     LOBBY
                   </h2>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setGameMode("roast-battle")}
-                      className={`px-4 py-2 font-bold border-2 rounded ${
-                        gameMode === "roast-battle"
-                          ? "bg-red-600 border-red-400 text-white"
-                          : "bg-gray-700 border-gray-500 text-gray-300"
-                      }`}
-                    >
-                      🔥 ROAST
-                    </button>
-                    <button
-                      onClick={() => setGameMode("land-io")}
-                      className={`px-4 py-2 font-bold border-2 rounded ${
-                        gameMode === "land-io"
-                          ? "bg-cyan-600 border-cyan-400 text-white"
-                          : "bg-gray-700 border-gray-500 text-gray-300"
-                      }`}
-                    >
-                      🌍 LAND
-                    </button>
-                  </div>
                 </div>
                 <div className="space-y-4">
                   <p className="text-gray-300 font-bold">Players: {players.length}/8</p>
@@ -205,24 +179,14 @@ export default function GameRoom() {
                       onClick={handleStartGame}
                       className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold border-2 border-purple-400 h-12 text-lg mt-6"
                     >
-                      START WTF LAND
+                      START ROAST BATTLE
                     </Button>
                   )}
                 </div>
               </Card>
             )}
 
-            {gamePhase === "playing" && currentPlayerId && gameMode === "land-io" && (
-              <LandIOGame
-                playerId={currentPlayerId}
-                players={players}
-                roomCode={code || ""}
-                onGameAction={handleGameAction}
-                onGameEnd={handleGameEnd}
-              />
-            )}
-
-            {gamePhase === "playing" && currentPlayerId && gameMode === "roast-battle" && (
+            {gamePhase === "playing" && currentPlayerId && (
               <RoastBattleGame
                 playerId={currentPlayerId}
                 players={players}

@@ -30,11 +30,7 @@ client.once('clientReady', async () => {
     new SlashCommandBuilder()
       .setName('create')
       .setDescription('Create a new WTF Land room')
-      .addIntegerOption(opt => opt.setName('max_players').setDescription('Max players (2-8)').setMinValue(2).setMaxValue(8))
-      .addStringOption(opt => opt.setName('mode').setDescription('Game mode').addChoices(
-        { name: 'Roast Battle', value: 'roast' },
-        { name: 'Land.io', value: 'land' }
-      )),
+      .addIntegerOption(opt => opt.setName('max_players').setDescription('Max players (2-8)').setMinValue(2).setMaxValue(8)),
     new SlashCommandBuilder()
       .setName('join')
       .setDescription('Join a WTF Land room')
@@ -74,23 +70,22 @@ client.on('interactionCreate', async (interaction) => {
 async function handleCreate(interaction: ChatInputCommandInteraction) {
   await interaction.deferReply();
   const maxPlayers = interaction.options.getInteger('max_players') || 4;
-  const mode = interaction.options.getString('mode') || 'roast';
 
   try {
     const response = await axios.post(`${GAME_API_URL}/api/rooms/create`, {
       username: interaction.user.username,
       avatarUrl: interaction.user.displayAvatarURL(),
       maxPlayers,
-      gameMode: mode
+      gameMode: 'roast'
     });
 
     const { code, roomId } = response.data;
-    activeGames.set(interaction.guildId!, { code, roomId, mode });
+    activeGames.set(interaction.guildId!, { code, roomId });
 
     const embed = new EmbedBuilder()
-      .setTitle(`${mode === 'roast' ? '🔥' : '🌍'} WTF LAND ROOM CREATED`)
-      .setDescription(`A new ${mode} battle game is ready!`)
-      .setColor(mode === 'roast' ? 0xFF0000 : 0x00FFFF)
+      .setTitle(`🔥 WTF LAND ROOM CREATED`)
+      .setDescription(`A new roast battle game is ready!`)
+      .setColor(0xFF0000)
       .addFields(
         { name: 'Room Code', value: `\`\`\`${code}\`\`\`` },
         { name: 'Join Game', value: `[Click here to join](${GAME_WEB_URL}/room/${code})` }
@@ -116,8 +111,7 @@ async function handleInfo(interaction: ChatInputCommandInteraction) {
     .setTitle('🎮 WTF LAND')
     .setDescription('Multiplayer Battle Games')
     .addFields(
-      { name: '🔥 ROAST BATTLE', value: 'Eliminate opponents with brutal roasts!' },
-      { name: '🌍 LAND.IO', value: 'Claim territory and dominate the map!' }
+      { name: '🔥 ROAST BATTLE', value: 'Eliminate opponents with brutal roasts!' }
     )
     .setColor(0x800080);
   await interaction.reply({ embeds: [embed] });
@@ -128,7 +122,7 @@ async function handleStatus(interaction: ChatInputCommandInteraction) {
   if (!game) {
     return interaction.reply('❌ No active game in this server.');
   }
-  await interaction.reply(`📊 Current Room: **${game.code}** (${game.mode})`);
+  await interaction.reply(`📊 Current Room: **${game.code}** (Roast Battle)`);
 }
 
 const token = process.env.DISCORD_BOT_TOKEN;
