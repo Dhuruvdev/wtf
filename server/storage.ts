@@ -1,236 +1,70 @@
-import { db } from "./db";
-import {
-  users,
-  rooms,
-  players,
-  gameItems,
-  clues,
-  votes,
-  roastBattles,
-  roastVotes,
-  type Room,
-  type Player,
-  type GameItem,
-  type Clue,
-  type Vote,
-  type User,
-  type RoastBattle,
-  type RoastVote,
-} from "@shared/schema";
-import { eq, and } from "drizzle-orm";
+import mongoose from "mongoose";
+import { Room, User, type IRoom, type IUser, type IPlayer } from "@shared/schema";
 import { nanoid } from "nanoid";
 
-export interface IStorage {
-  createRoom(hostId: number): Promise<Room>;
-  getRoomByCode(code: string): Promise<Room | undefined>;
-  getRoom(id: number): Promise<Room | undefined>;
-  addPlayer(roomId: number, player: { username: string; avatarUrl?: string; isHost?: boolean; isBot?: boolean; isAlive?: boolean }): Promise<Player>;
-  getPlayers(roomId: number): Promise<Player[]>;
-  getPlayer(id: number): Promise<Player | undefined>;
-  removePlayer(id: number): Promise<void>;
-  updatePlayerAlive(playerId: number, isAlive: boolean): Promise<void>;
-  getAlivePlayers(roomId: number): Promise<Player[]>;
-  updateRoomStatus(roomId: number, status: string): Promise<void>;
-  updateRoomRound(roomId: number, round: number): Promise<void>;
-  setGameItem(roomId: number, itemId: number, knowerPlayerId: number, somethingBroke: boolean): Promise<void>;
-  addClue(roundId: number, playerId: number, clueText: string, isFake: boolean): Promise<Clue>;
-  addVote(roundId: number, voterId: number, accusedId: number): Promise<Vote>;
-  getVotes(roundId: number): Promise<Vote[]>;
-  addGameItem(roomId: number, name: string, category: string): Promise<GameItem>;
-  getGameItems(roomId: number): Promise<GameItem[]>;
-  getClues(roundId: number): Promise<Clue[]>;
-  getUserByDiscordId(discordId: string): Promise<User | undefined>;
-  createUser(discordId: string, discordUsername: string, discordAvatar: string | undefined, discordEmail: string | undefined, discordToken: string): Promise<User>;
-  updateUserToken(userId: number, discordToken: string): Promise<void>;
-  createRoastBattle(roomId: number, performer1Id: number, performer2Id: number): Promise<RoastBattle>;
-  getRoastBattle(battleId: number): Promise<RoastBattle | undefined>;
-  updateRoastBattleStatus(battleId: number, status: string): Promise<void>;
-  addRoastVote(battleId: number, voterId: number, votedForId: number): Promise<RoastVote>;
-  getRoastVotes(battleId: number): Promise<RoastVote[]>;
-  updateRoastBattleWinner(battleId: number, winnerId: number, votes1: number, votes2: number): Promise<void>;
-}
+export class DatabaseStorage {
+  constructor() {
+    const uri = process.env.MONGODB_URI;
+    if (!uri) throw new Error("MONGODB_URI is required");
+    mongoose.connect(uri);
+  }
 
-export class DatabaseStorage implements IStorage {
-  async createRoom(hostId: number): Promise<Room> {
+  async createRoom(hostId?: string): Promise<IRoom> {
     const code = nanoid(4).toUpperCase();
-    const [room] = await db.insert(rooms).values({
-      code,
-      status: "lobby",
-    }).returning();
-    return room;
+    const room = await Room.create({ code, hostId });
+    return room.toObject() as IRoom;
   }
 
-  async getRoomByCode(code: string): Promise<Room | undefined> {
-    const [room] = await db.select().from(rooms).where(eq(rooms.code, code));
-    return room;
+  async getRoomByCode(code: string): Promise<IRoom | undefined> {
+    const room = await Room.findOne({ code });
+    return room ? (room.toObject() as IRoom) : undefined;
   }
 
-  async getRoom(id: number): Promise<Room | undefined> {
-    const [room] = await db.select().from(rooms).where(eq(rooms.id, id));
-    return room;
+  async getRoom(id: string): Promise<IRoom | undefined> {
+    const room = await Room.findById(id);
+    return room ? (room.toObject() as IRoom) : undefined;
   }
 
-  async addPlayer(roomId: number, player: { username: string; avatarUrl?: string; isHost?: boolean; isBot?: boolean }): Promise<Player> {
-    const [newPlayer] = await db.insert(players).values({
-      roomId,
-      username: player.username,
-      avatarUrl: player.avatarUrl,
-      isHost: player.isHost || false,
-      isBot: player.isBot || false,
-    }).returning();
-    return newPlayer;
-  }
-
-  async getPlayers(roomId: number): Promise<Player[]> {
-    return await db.select().from(players).where(eq(players.roomId, roomId));
-  }
-
-  async getPlayer(id: number): Promise<Player | undefined> {
-    const [player] = await db.select().from(players).where(eq(players.id, id));
-    return player;
-  }
-
-  async removePlayer(id: number): Promise<void> {
-    await db.delete(players).where(eq(players.id, id));
-  }
-
-  async updatePlayerAlive(playerId: number, isAlive: boolean): Promise<void> {
-    await db.update(players).set({ isAlive }).where(eq(players.id, playerId));
-  }
-
-  async getAlivePlayers(roomId: number): Promise<Player[]> {
-    return await db.select().from(players).where(
-      and(eq(players.roomId, roomId), eq(players.isAlive, true))
-    );
-  }
-
-  async updateRoomStatus(roomId: number, status: string): Promise<void> {
-    await db.update(rooms).set({ status }).where(eq(rooms.id, roomId));
-  }
-
-  async updateRoomRound(roomId: number, round: number): Promise<void> {
-    await db.update(rooms).set({ round }).where(eq(rooms.id, roomId));
-  }
-
-  async setGameItem(roomId: number, itemId: number, knowerPlayerId: number, somethingBroke: boolean): Promise<void> {
-    await db.update(rooms).set({
-      brokenItemId: itemId,
-      knowerPlayerId,
-      somethingBroke,
-    }).where(eq(rooms.id, roomId));
-  }
-
-  async addClue(roundId: number, playerId: number, clueText: string, isFake: boolean): Promise<Clue> {
-    const [clue] = await db.insert(clues).values({
-      roundId,
-      playerId,
-      clueText,
-      isFake,
-    }).returning();
-    return clue;
-  }
-
-  async addVote(roundId: number, voterId: number, accusedId: number): Promise<Vote> {
-    const [vote] = await db.insert(votes).values({
-      roundId,
-      voterId,
-      accusedId,
-    }).returning();
-    return vote;
-  }
-
-  async getVotes(roundId: number): Promise<Vote[]> {
-    return await db.select().from(votes).where(eq(votes.roundId, roundId));
-  }
-
-  async addGameItem(roomId: number, name: string, category: string): Promise<GameItem> {
-    const [item] = await db.insert(gameItems).values({
-      roomId,
-      name,
-      category,
-    }).returning();
-    return item;
-  }
-
-  async getGameItems(roomId: number): Promise<GameItem[]> {
-    return await db.select().from(gameItems).where(eq(gameItems.roomId, roomId));
-  }
-
-  async getClues(roundId: number): Promise<Clue[]> {
-    return await db.select().from(clues).where(eq(clues.roundId, roundId));
-  }
-
-  async addAIPlayer(roomId: number): Promise<Player> {
-    const aiNames = ['Bot Alpha', 'Bot Beta', 'Bot Gamma', 'Bot Delta', 'Bot Epsilon', 'Bot Zeta', 'Bot Eta', 'Bot Theta'];
-    const randomName = aiNames[Math.floor(Math.random() * aiNames.length)];
+  async addPlayer(roomId: string, player: Partial<IPlayer>): Promise<IPlayer> {
+    const room = await Room.findById(roomId);
+    if (!room) throw new Error("Room not found");
     
-    const [newPlayer] = await db.insert(players).values({
-      roomId,
-      username: randomName,
-      isBot: true,
-    }).returning();
-    return newPlayer;
+    // Check if player already exists by username to avoid duplicates
+    const existingPlayer = room.players.find(p => p.username === player.username);
+    if (existingPlayer) return existingPlayer.toObject() as IPlayer;
+
+    room.players.push(player);
+    await room.save();
+    return room.players[room.players.length - 1].toObject() as IPlayer;
   }
 
-  async getUserByDiscordId(discordId: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.discordId, discordId));
-    return user;
+  async getPlayers(roomId: string): Promise<IPlayer[]> {
+    const room = await Room.findById(roomId);
+    return room ? (room.players.toObject() as IPlayer[]) : [];
   }
 
-  async createUser(discordId: string, discordUsername: string, discordAvatar: string | undefined, discordEmail: string | undefined, discordToken: string): Promise<User> {
-    const [user] = await db.insert(users).values({
-      discordId,
-      discordUsername,
-      discordAvatar,
-      discordEmail,
-      discordToken,
-    }).returning();
-    return user;
+  async updateRoomStatus(roomId: string, status: string): Promise<void> {
+    await Room.findByIdAndUpdate(roomId, { status });
   }
 
-  async updateUserToken(userId: number, discordToken: string): Promise<void> {
-    await db.update(users).set({ discordToken }).where(eq(users.id, userId));
+  async addAIPlayer(roomId: string): Promise<IPlayer> {
+    const aiNames = ['Bot Alpha', 'Bot Beta', 'Bot Gamma'];
+    const randomName = aiNames[Math.floor(Math.random() * aiNames.length)];
+    return this.addPlayer(roomId, { username: randomName, isBot: true });
   }
 
-  async createRoastBattle(roomId: number, performer1Id: number, performer2Id: number): Promise<RoastBattle> {
-    const [battle] = await db.insert(roastBattles).values({
-      roomId,
-      performer1Id,
-      performer2Id,
-      status: "waiting",
-    }).returning();
-    return battle;
+  async getUserByDiscordId(discordId: string): Promise<IUser | undefined> {
+    const user = await User.findOne({ discordId });
+    return user ? (user.toObject() as IUser) : undefined;
   }
 
-  async getRoastBattle(battleId: number): Promise<RoastBattle | undefined> {
-    const [battle] = await db.select().from(roastBattles).where(eq(roastBattles.id, battleId));
-    return battle;
+  async createUser(data: Partial<IUser>): Promise<IUser> {
+    const user = await User.create(data);
+    return user.toObject() as IUser;
   }
 
-  async updateRoastBattleStatus(battleId: number, status: string): Promise<void> {
-    await db.update(roastBattles).set({ status }).where(eq(roastBattles.id, battleId));
-  }
-
-  async addRoastVote(battleId: number, voterId: number, votedForId: number): Promise<RoastVote> {
-    const [vote] = await db.insert(roastVotes).values({
-      battleId,
-      voterId,
-      votedForId,
-    }).returning();
-    return vote;
-  }
-
-  async getRoastVotes(battleId: number): Promise<RoastVote[]> {
-    return await db.select().from(roastVotes).where(eq(roastVotes.battleId, battleId));
-  }
-
-  async updateRoastBattleWinner(battleId: number, winnerId: number, votes1: number, votes2: number): Promise<void> {
-    await db.update(roastBattles).set({
-      winnerId,
-      votesForPerformer1: votes1,
-      votesForPerformer2: votes2,
-      status: "results",
-    }).where(eq(roastBattles.id, battleId));
+  async updateUserToken(userId: string, discordToken: string): Promise<void> {
+    await User.findByIdAndUpdate(userId, { discordToken });
   }
 }
 

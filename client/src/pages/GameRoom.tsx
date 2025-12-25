@@ -19,21 +19,47 @@ export default function GameRoom() {
   const [currentPlayerId, setCurrentPlayerId] = useState<number | null>(null);
 
   useEffect(() => {
+    const autoJoin = async () => {
+      // Automatic join for Discord Activity
+      if (window.discord?.activity) {
+        const user = window.discord.user;
+        if (user && !localStorage.getItem(`user_${code}`)) {
+          try {
+            const res = await fetch("/api/rooms/join", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                code,
+                username: user.username,
+                avatarUrl: user.avatarUrl
+              }),
+            });
+            const data = await res.json();
+            localStorage.setItem(`user_${code}`, data.playerId);
+            window.location.reload();
+          } catch (e) {
+            console.error("Auto-join failed", e);
+          }
+        }
+      }
+    };
+    autoJoin();
+
     const loadRoom = async () => {
       if (!code) return;
       try {
         const res = await fetch(`/api/rooms/${code}`);
         const data = await res.json();
-        setRoomId(data.id);
+        setRoomId(data._id);
         setPlayers(data.players || []);
 
         const storedUserId = localStorage.getItem(`user_${code}`);
         if (storedUserId) {
-          setCurrentPlayerId(parseInt(storedUserId));
+          setCurrentPlayerId(storedUserId);
         }
 
         const hostPlayer = data.players?.find((p: any) => p.isHost);
-        if (hostPlayer) setIsHost(hostPlayer.id === parseInt(storedUserId || "0"));
+        if (hostPlayer) setIsHost(hostPlayer._id === storedUserId);
       } catch (err) {
         setError("Failed to load room");
       }

@@ -59,15 +59,15 @@ async function handleDiscordCallback(code: string) {
     let user = await storage.getUserByDiscordId(userData.id);
 
     if (!user) {
-      user = await storage.createUser(
-        userData.id,
-        userData.username,
-        userData.avatar || undefined,
-        userData.email,
-        tokenData.access_token
-      );
+      user = await storage.createUser({
+        discordId: userData.id,
+        discordUsername: userData.username,
+        discordAvatar: userData.avatar || undefined,
+        discordEmail: userData.email,
+        discordToken: tokenData.access_token
+      });
     } else {
-      await storage.updateUserToken(user.id, tokenData.access_token);
+      await storage.updateUserToken(user._id, tokenData.access_token);
     }
 
     return {
@@ -175,12 +175,8 @@ export async function registerRoutes(
   app.post("/api/rooms/create", async (req, res) => {
     try {
       const { username, avatarUrl } = req.body;
-      if (!username) {
-        return res.status(400).json({ message: "Username required" });
-      }
-      
-      const room = await storage.createRoom(0);
-      const player = await storage.addPlayer(room.id, {
+      const room = await storage.createRoom();
+      const player = await storage.addPlayer(room._id, {
         username,
         avatarUrl,
         isHost: true,
@@ -188,11 +184,10 @@ export async function registerRoutes(
 
       res.status(201).json({ 
         code: room.code,
-        playerId: player.id,
-        roomId: room.id
+        playerId: player._id,
+        roomId: room._id
       });
     } catch (err) {
-      console.error("Create room error", err);
       res.status(500).json({ message: "Failed to create room" });
     }
   });
@@ -200,27 +195,12 @@ export async function registerRoutes(
   app.post("/api/rooms/join", async (req, res) => {
     try {
       const { code, username, avatarUrl } = req.body;
-      if (!code || !username) {
-        return res.status(400).json({ message: "Code and username required" });
-      }
-      
       const room = await storage.getRoomByCode(code);
-      if (!room) {
-        return res.status(404).json({ message: "Room not found" });
-      }
+      if (!room) return res.status(404).json({ message: "Room not found" });
 
-      const player = await storage.addPlayer(room.id, {
-        username,
-        avatarUrl,
-      });
-
-      res.status(200).json({
-        roomId: room.id,
-        playerId: player.id,
-        code: room.code
-      });
+      const player = await storage.addPlayer(room._id, { username, avatarUrl });
+      res.status(200).json({ roomId: room._id, playerId: player._id, code: room.code });
     } catch (err) {
-      console.error("Join room error", err);
       res.status(500).json({ message: "Failed to join room" });
     }
   });
@@ -231,10 +211,8 @@ export async function registerRoutes(
       if (!room) {
         return res.status(404).json({ message: "Room not found" });
       }
-      const players = await storage.getPlayers(room.id);
-      res.json({ ...room, players });
+      res.json(room);
     } catch (err) {
-      console.error("Get room error", err);
       res.status(500).json({ message: "Failed to get room" });
     }
   });
@@ -242,15 +220,14 @@ export async function registerRoutes(
   // Add AI player endpoint
   app.post('/api/rooms/:roomId/add-ai', async (req, res) => {
     try {
-      const roomId = Number(req.params.roomId);
+      const roomId = req.params.roomId;
       const room = await storage.getRoom(roomId);
       
       if (!room) {
         return res.status(404).json({ message: "Room not found" });
       }
 
-      const players_list = await storage.getPlayers(roomId);
-      if (players_list.length >= 8) {
+      if (room.players.length >= 8) {
         return res.status(400).json({ message: "Room is full (max 8 players)" });
       }
 
@@ -259,7 +236,6 @@ export async function registerRoutes(
       
       res.json(aiPlayer);
     } catch (err) {
-      console.error('Failed to add AI player', err);
       res.status(500).json({ message: "Failed to add AI player" });
     }
   });
@@ -267,7 +243,7 @@ export async function registerRoutes(
   // Start game endpoint
   app.post('/api/rooms/:roomId/start', async (req, res) => {
     try {
-      const roomId = Number(req.params.roomId);
+      const roomId = req.params.roomId;
       const room = await storage.getRoom(roomId);
       
       if (!room) {
@@ -284,7 +260,6 @@ export async function registerRoutes(
       
       res.json({ success: true });
     } catch (err) {
-      console.error('Failed to start game', err);
       res.status(500).json({ message: "Failed to start game" });
     }
   });

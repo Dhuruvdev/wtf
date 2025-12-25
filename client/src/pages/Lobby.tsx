@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { GameCard } from "@/components/GameCard";
 import { Dice5, Users, ArrowRight, Gamepad2 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useEffect } from "react";
 
 export default function Lobby() {
   const [username, setUsername] = useState("");
@@ -14,6 +15,13 @@ export default function Lobby() {
 
   const createRoom = useCreateRoom();
   const joinRoom = useJoinRoom();
+
+  useEffect(() => {
+    // If we're in a Discord Activity, try to auto-join if we have context
+    if (window.discord?.activity?.roomCode) {
+      setLocation(`/room/${window.discord.activity.roomCode}`);
+    }
+  }, []);
 
   const handleCreate = async () => {
     if (!username.trim()) return;
