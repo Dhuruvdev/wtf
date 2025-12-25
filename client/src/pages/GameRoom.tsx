@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { AlertCircle, Users, Copy, Plus } from "lucide-react";
 import { LandIOGame } from "@/components/LandIOGame";
+import { RoastBattleGame } from "@/components/RoastBattleGame";
 
 export default function GameRoom() {
   const [, params] = useRoute("/room/:code");
@@ -11,6 +12,7 @@ export default function GameRoom() {
   const code = params?.code;
   const [roomId, setRoomId] = useState<number | null>(null);
   const [gamePhase, setGamePhase] = useState<"lobby" | "playing" | "results">("lobby");
+  const [gameMode, setGameMode] = useState<"land-io" | "roast-battle">("roast-battle");
   const [players, setPlayers] = useState<any[]>([]);
   const [error, setError] = useState("");
   const [isHost, setIsHost] = useState(false);
@@ -72,7 +74,11 @@ export default function GameRoom() {
       return;
     }
     try {
-      const res = await fetch(`/api/rooms/${roomId}/start-land-io`, {
+      const endpoint = gameMode === "roast-battle" 
+        ? `/api/rooms/${roomId}/start-roast-battle`
+        : `/api/rooms/${roomId}/start-land-io`;
+      
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
@@ -80,7 +86,7 @@ export default function GameRoom() {
       setGamePhase("playing");
     } catch (err) {
       console.error("Start game error", err);
-      setError("Failed to start WTF Land game");
+      setError(`Failed to start ${gameMode} game`);
     }
   };
 
@@ -142,9 +148,33 @@ export default function GameRoom() {
           <div className="lg:col-span-2">
             {gamePhase === "lobby" && (
               <Card className="border-4 border-purple-500 bg-black/70 p-8">
-                <h2 className="text-3xl font-bold text-purple-300 mb-6" style={{ fontFamily: "'Press Start 2P', cursive" }}>
-                  LOBBY
-                </h2>
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-3xl font-bold text-purple-300" style={{ fontFamily: "'Press Start 2P', cursive" }}>
+                    LOBBY
+                  </h2>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setGameMode("roast-battle")}
+                      className={`px-4 py-2 font-bold border-2 rounded ${
+                        gameMode === "roast-battle"
+                          ? "bg-red-600 border-red-400 text-white"
+                          : "bg-gray-700 border-gray-500 text-gray-300"
+                      }`}
+                    >
+                      🔥 ROAST
+                    </button>
+                    <button
+                      onClick={() => setGameMode("land-io")}
+                      className={`px-4 py-2 font-bold border-2 rounded ${
+                        gameMode === "land-io"
+                          ? "bg-cyan-600 border-cyan-400 text-white"
+                          : "bg-gray-700 border-gray-500 text-gray-300"
+                      }`}
+                    >
+                      🌍 LAND
+                    </button>
+                  </div>
+                </div>
                 <div className="space-y-4">
                   <p className="text-gray-300 font-bold">Players: {players.length}/8</p>
                   <div className="grid grid-cols-2 gap-3">
@@ -182,8 +212,18 @@ export default function GameRoom() {
               </Card>
             )}
 
-            {gamePhase === "playing" && currentPlayerId && (
+            {gamePhase === "playing" && currentPlayerId && gameMode === "land-io" && (
               <LandIOGame
+                playerId={currentPlayerId}
+                players={players}
+                roomCode={code || ""}
+                onGameAction={handleGameAction}
+                onGameEnd={handleGameEnd}
+              />
+            )}
+
+            {gamePhase === "playing" && currentPlayerId && gameMode === "roast-battle" && (
+              <RoastBattleGame
                 playerId={currentPlayerId}
                 players={players}
                 roomCode={code || ""}

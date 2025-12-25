@@ -6,7 +6,6 @@ export function useSoundEffect() {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       const now = audioContext.currentTime;
       
-      // Spacey beep sound for buttons
       const osc = audioContext.createOscillator();
       const gain = audioContext.createGain();
       const filter = audioContext.createBiquadFilter();
@@ -37,7 +36,6 @@ export function useSoundEffect() {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       const now = audioContext.currentTime;
       
-      // Ascending "success" sound (two tones)
       const notes = [
         { freq: 700, duration: 0.1 },
         { freq: 1000, duration: 0.2 }
@@ -72,7 +70,6 @@ export function useSoundEffect() {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       const now = audioContext.currentTime;
       
-      // Descending "error" sound
       const osc = audioContext.createOscillator();
       const gain = audioContext.createGain();
       
@@ -93,5 +90,83 @@ export function useSoundEffect() {
     }
   }, []);
 
-  return { playClick, playSuccess, playError };
+  // Doom-style sound effects
+  const playRoastSubmitted = useCallback(() => {
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const now = audioContext.currentTime;
+      
+      const osc = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(150, now);
+      osc.frequency.exponentialRampToValueAtTime(80, now + 0.2);
+      
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.exponentialRampToValueAtTime(0.05, now + 0.2);
+      
+      osc.connect(gain);
+      gain.connect(audioContext.destination);
+      
+      osc.start(now);
+      osc.stop(now + 0.2);
+    } catch (e) {
+      // Silently fail
+    }
+  }, []);
+
+  const playVoteSound = useCallback(() => {
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const now = audioContext.currentTime;
+      
+      const notes = [400, 600];
+      notes.forEach((freq, idx) => {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        
+        gain.gain.setValueAtTime(0.2, now + idx * 0.05);
+        gain.gain.exponentialRampToValueAtTime(0, now + idx * 0.05 + 0.1);
+        
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        
+        osc.start(now + idx * 0.05);
+        osc.stop(now + idx * 0.05 + 0.1);
+      });
+    } catch (e) {
+      // Silently fail
+    }
+  }, []);
+
+  const playElimination = useCallback(() => {
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const now = audioContext.currentTime;
+      
+      const osc = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(300, now);
+      osc.frequency.exponentialRampToValueAtTime(80, now + 0.4);
+      
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.exponentialRampToValueAtTime(0, now + 0.4);
+      
+      osc.connect(gain);
+      gain.connect(audioContext.destination);
+      
+      osc.start(now);
+      osc.stop(now + 0.4);
+    } catch (e) {
+      // Silently fail
+    }
+  }, []);
+
+  return { playClick, playSuccess, playError, playRoastSubmitted, playVoteSound, playElimination };
 }

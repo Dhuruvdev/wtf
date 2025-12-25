@@ -316,6 +316,103 @@ export async function registerRoutes(
   });
 
 
+  // Roast Battle Game Routes
+  const roastBattleGames = new Map<number, any>();
+
+  app.post('/api/rooms/:roomId/start-roast-battle', async (req, res) => {
+    try {
+      const roomId = Number(req.params.roomId);
+      const players = await storage.getPlayers(roomId);
+      
+      if (players.length < 2) {
+        return res.status(400).json({ message: "Need at least 2 players" });
+      }
+
+      // Randomly select 2 performers
+      const shuffled = players.sort(() => Math.random() - 0.5);
+      
+      const gameState = {
+        roomId,
+        players: players.map((p, i) => ({
+          id: p.id,
+          username: p.username,
+          isAlive: true,
+          score: 0,
+          isPerformer: i < 2
+        })),
+        round: 1,
+        maxRounds: 3,
+        performer1Id: shuffled[0].id,
+        performer2Id: shuffled[1].id,
+        voterIds: shuffled.slice(2).map(p => p.id),
+        phase: 'performing',
+        gameActive: true,
+        startTime: Date.now()
+      };
+
+      roastBattleGames.set(roomId, gameState);
+
+      broadcast(roomId, 'ROAST_BATTLE_START', { 
+        performer1: shuffled[0].username,
+        performer2: shuffled[1].username,
+        voters: shuffled.slice(2).length
+      });
+      res.json({ success: true });
+    } catch (err) {
+      console.error('Failed to start roast battle', err);
+      res.status(500).json({ message: "Failed to start game" });
+    }
+  });
+
+  app.post('/api/rooms/:roomId/roast-submitted', async (req, res) => {
+    try {
+      const roomId = Number(req.params.roomId);
+      const { playerId, roastText } = req.body;
+      const gameState = roastBattleGames.get(roomId);
+      
+      if (!gameState) {
+        return res.status(404).json({ message: "Game not found" });
+      }
+
+      broadcast(roomId, 'ROAST_SUBMITTED', {
+        playerId,
+        roastLength: roastText.length
+      });
+      
+      res.json({ success: true });
+    } catch (err) {
+      console.error('Failed to submit roast', err);
+      res.status(500).json({ message: "Failed to submit roast" });
+    }
+  });
+
+  app.post('/api/rooms/:roomId/roast-vote', async (req, res) => {
+    try {
+      const roomId = Number(req.params.roomId);
+      const { voterId, votedForId } = req.body;
+      const gameState = roastBattleGames.get(roomId);
+      
+      if (!gameState) {
+        return res.status(404).json({ message: "Game not found" });
+      }
+
+      const player = gameState.players.find((p: any) => p.id === votedForId);
+      if (player) {
+        player.score++;
+      }
+
+      broadcast(roomId, 'VOTE_SUBMITTED', {
+        voterId,
+        votedFor: votedForId
+      });
+      
+      res.json({ success: true });
+    } catch (err) {
+      console.error('Failed to submit vote', err);
+      res.status(500).json({ message: "Failed to submit vote" });
+    }
+  });
+
   // Land.io Game Routes
   const landIOGames = new Map<number, any>();
 
